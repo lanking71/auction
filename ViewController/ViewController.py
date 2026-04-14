@@ -5,7 +5,17 @@ from PySide6.QtGui import QFont
 from ViewController.auctionUi import Ui_MainWindow
 from datetime import datetime
 import os
+import sys
 import json
+
+
+def _data_path(filename):
+    """개발환경 / PyInstaller exe 양쪽에서 데이터 파일의 절대경로 반환"""
+    if getattr(sys, 'frozen', False):
+        base = os.path.dirname(sys.executable)
+    else:
+        base = os.getcwd()
+    return os.path.join(base, filename)
 
 
 class ViewController(QMainWindow,QObject):
@@ -86,7 +96,7 @@ class ViewController(QMainWindow,QObject):
             selected_data = [json.loads(item.text()) for item in self.ui.listAccount.selectedItems()]
             #  파일에서 기존 데이터를 읽습니다.
             try:
-                with open('account_data.json','r') as f:
+                with open(_data_path('account_data.json'),'r') as f:
                     data_list = json.load(f)
             except (FileNotFoundError, json.JSONDecodeError):
                 data_list
@@ -96,7 +106,7 @@ class ViewController(QMainWindow,QObject):
                 data_list = [account for account in data_list if not (account['id'] == selected_item['id'] and account['pw'] == selected_item['pw'])]
 
             # 변견됭 데이터를 파일에 다시 씁니다.
-            with open('account_data.json','w') as f:
+            with open(_data_path('account_data.json'),'w') as f:
                 json.dump(data_list, f)
 
             for item in self.ui.listAccount.selectedItems():
@@ -110,7 +120,7 @@ class ViewController(QMainWindow,QObject):
 
     def loadAccountsToList(self):
         try:
-            with open('account_data.json','r') as f:
+            with open(_data_path('account_data.json'),'r') as f:
                 data_list = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             data_list = []
@@ -135,13 +145,13 @@ class ViewController(QMainWindow,QObject):
                 account_data['pw'] = text_value
 
         try:
-            with open('account_data.json','r') as f:
+            with open(_data_path('account_data.json'),'r') as f:
                 data_list = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             data_list = []
         data_list.append(account_data)
 
-        with open('account_data.json','w') as f:
+        with open(_data_path('account_data.json'),'w') as f:
             json.dump(data_list,f)
 
         self.ui.listAccount.addItem(json.dumps(account_data))
@@ -372,12 +382,12 @@ class ViewController(QMainWindow,QObject):
             'clickTime3':self.ui.clickTime3.text()
         }
 
-        with open('input_data.json','w') as file:
+        with open(_data_path('input_data.json'),'w') as file:
             json.dump(input_data, file)
 
     def load_input_data(self):
         try:
-            with open("input_data.json",'r') as file:
+            with open(_data_path("input_data.json"),'r') as file:
                 input_data = json.load(file)
             self.ui.linUrl.setText(input_data['url'])
             self.ui.linMaxPrice.setText(input_data['maxPrice'])

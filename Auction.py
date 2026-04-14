@@ -1,5 +1,7 @@
 import threading
 import time
+import sys
+import os
 
 import requests as rq
 from selenium.common import TimeoutException, NoSuchElementException, WebDriverException
@@ -36,14 +38,25 @@ class Auction(QObject):
         self._login_event = threading.Event()  # 로그인 완료 대기용
         
 
+    @staticmethod
+    def _data_path(filename):
+        """개발환경 / PyInstaller exe 양쪽에서 데이터 파일의 절대경로 반환"""
+        if getattr(sys, 'frozen', False):
+            # PyInstaller exe: exe 파일이 있는 폴더 기준
+            base = os.path.dirname(sys.executable)
+        else:
+            # 개발환경: 프로젝트 루트(CWD) 기준
+            base = os.getcwd()
+        return os.path.join(base, filename)
+
     def trigger_manual_login(self):
         """GUI '로그인 완료' 버튼 클릭 또는 자동 감지 시 호출 — 대기 중인 loginstart() 재개"""
         self._login_event.set()
 
     def check_session_cookies(self):
         try:
-            # 저장된 쿠키 로드
-            with open("auction_cookies.pkl", "rb") as f:
+            # 저장된 쿠키 로드 (개발환경/exe 모두 호환 경로)
+            with open(self._data_path("auction_cookies.pkl"), "rb") as f:
                 cookies = pickle.load(f)
             
             # 새로운 세션 생성
@@ -206,13 +219,14 @@ class Auction(QObject):
         now = datetime.now()
         return all(cookie.get('expiry', now) > now for cookie in cookies)
     
-    def save_cookies(self,cookies, filename):
+    def save_cookies(self, cookies, filename):
         try:
             if not cookies:
                 self.auction_operation_signal.emit("쿠키가 비어있습니다")
                 return False
-                
-            with open(filename, "wb") as f:
+
+            filepath = self._data_path(filename)
+            with open(filepath, "wb") as f:
                 pickle.dump(cookies, f)
                 
             # 쿠키 적용 로직 개선
@@ -634,8 +648,26 @@ class Auction(QObject):
         self.stop_refresh = False
         self.over_limit = False
         self.refreshError = True
+
+        # 쿠키 세션 준비 — pkl 파일 없을 경우 브라우저 현재 쿠키로 대체
         self.session = self.check_session_cookies()
-        res = self.session.get(self.url)
+        if self.session is None:
+            self.auction_operation_signal.emit("쿠키 파일 없음 → 현재 브라우저 세션으로 진행합니다.")
+            self.session = rq.Session()
+            for cookie in browser.get_cookies():
+                self.session.cookies.set(
+                    name=cookie['name'],
+                    value=cookie['value'],
+                    domain=cookie.get('domain', '.auction.co.kr')
+                )
+
+        try:
+            res = self.session.get(self.url)
+        except Exception as e:
+            self.auction_operation_signal.emit(f"상품 정보 요청 실패: {e}")
+            self.cleanup_resources(browser, finished)
+            return
+
         if res.status_code != 200:
             self.auction_operation_signal.emit("URL에 대한 응답이 올바르지 않습니다.")
             return
