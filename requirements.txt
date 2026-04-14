@@ -1,0 +1,22 @@
+# 웹 스크래핑 및 브라우저 자동화
+selenium>=4.15.0
+undetected-chromedriver>=3.5.0
+selenium-stealth>=1.0.6
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+
+# GUI 프레임워크
+PySide6>=6.6.0
+
+# 유틸리티
+keyboard>=0.13.0
+
+# 데이터 처리 (pickle은 Python 표준 라이브러리이므로 별도 설치 불필요)
+
+# 네트워크 및 HTTP
+urllib3>=1.26.0
+certifi>=2023.7.22
+
+# 추가 의존성 (필요시)
+# lxml>=4.9.0  # BeautifulSoup용 파서 (선택사항)
+# Pillow>=10.0.0  # 이미지 처리 (필요시) 
