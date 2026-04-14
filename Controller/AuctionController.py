@@ -51,6 +51,13 @@ class AuctionController(QObject):
         # self.view.stop_session_signal.connect(self.auctionStop_session)
         self.isWorkRunning_signal.connect(self.view_isWorkRun)
 
+        # ── 수동 로그인 연결 ─────────────────────────────────────────────────
+        # Auction이 로그인 필요 신호 → ViewController 버튼 활성화
+        self.crawling.login_needed_signal.connect(self.view.enableLoginDoneBtn)
+        # ViewController 버튼 클릭 → Auction 대기 이벤트 해제
+        self.view.login_complete_signal.connect(self.crawling.trigger_manual_login)
+        # ─────────────────────────────────────────────────────────────────────
+
     def view_bidTitle(self,msgStr):
         self.view.view_bidTitle(msgStr)
 

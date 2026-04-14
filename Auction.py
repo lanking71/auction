@@ -28,10 +28,17 @@ class Auction(QObject):
     auction_operation_signal = Signal(str)
     auction_bid_results = Signal(list)
     auction_bid_title = Signal(str)
+    login_needed_signal = Signal()   # 수동 로그인 필요 → GUI 버튼 활성화
+
     def __init__(self):
         super().__init__()
         self.local_data = threading.local()
+        self._login_event = threading.Event()  # 로그인 완료 대기용
         
+
+    def trigger_manual_login(self):
+        """GUI '로그인 완료' 버튼 클릭 또는 자동 감지 시 호출 — 대기 중인 loginstart() 재개"""
+        self._login_event.set()
 
     def check_session_cookies(self):
         try:
@@ -156,7 +163,6 @@ class Auction(QObject):
         try:
             self.browser = uc.Chrome(
                 options=options,
-                version_main=147,  # 현재 Chrome 버전에 맞춤
                 use_subprocess=True
             )
 
@@ -324,98 +330,91 @@ class Auction(QObject):
         #     self.auction_operation_signal.emit(f"로그인 상태 확인 중 오류: {str(e)}")
         #     return False
     
-    def loginstart(self,finished=None):
-        if hasattr(self.local_data,"thread_data"):
+    def loginstart(self, finished=None):
+        # ── 브라우저 인스턴스 선택 (단일 / 멀티스레드 공용) ──────────────────
+        if hasattr(self.local_data, "thread_data"):
             thread_id = threading.get_ident()
             browser = self.local_data.thread_data[thread_id]["browser"]
             self.closing_time = self.local_data.thread_data[thread_id]["closing_time"]
         else:
             browser = self.browser
-        
-        # browser 검증
+
         if browser is None:
-            self.auction_operation_signal.emit("브라우저 객체가 None입니다. 브라우저 초기화에 실패했습니다.")
+            self.auction_operation_signal.emit("브라우저 초기화에 실패했습니다.")
             if finished:
                 finished.emit(False)
             return False
-            
-        self.auction_operation_signal.emit("옥션 로그인을 시도 하고 있습니다.")
 
         try:
+            # ── 1단계: 옥션 메인 페이지 접속 ───────────────────────────────
+            self.auction_operation_signal.emit("옥션 메인 페이지 접속 중...")
             browser.get("http://www.auction.co.kr/")
-            
-            # Cloudflare 챌린지 대기
-            import random
-            self.auction_operation_signal.emit("보안 검증 대기 중... (최대 60초)")
-            
-            # 최대 60초 동안 페이지가 정상 로드될 때까지 대기
-            max_wait = 60
+
+            # Cloudflare / 보안 검증 페이지 대기 (최대 30초)
             wait_interval = 2
-            elapsed = 0
-            
-            while elapsed < max_wait:
+            for elapsed in range(0, 30, wait_interval):
                 try:
-                    # 정상 페이지 요소 확인
                     if browser.find_elements(By.CSS_SELECTOR, "div.usermenu"):
                         self.auction_operation_signal.emit("페이지 로딩 완료")
                         break
-                    elif "사용자 활동 검토" in browser.page_source:
-                        self.auction_operation_signal.emit(f"보안 검증 진행 중... ({elapsed}/{max_wait}초)")
-                        time.sleep(wait_interval)
-                        elapsed += wait_interval
-                    else:
-                        break
-                except:
-                    time.sleep(wait_interval)
-                    elapsed += wait_interval
-            
-            # 추가 대기
-            time.sleep(random.uniform(3, 5))
-            
-            # 페이지 상태 재확인
-            if "사용자 활동 검토" in browser.page_source:
-                self.auction_operation_signal.emit("보안 검증을 통과하지 못했습니다. 수동으로 처리가 필요할 수 있습니다.")
-                # 수동 처리를 위한 대기
-                input("보안 검증 페이지가 나타났습니다. 수동으로 해결한 후 Enter를 눌러주세요...")
-            
-            cookies = browser.get_cookies()
-            
-            if cookies and self.validate_cookies(cookies):
-                self.auction_operation_signal.emit("기존 쿠키로 로그인 시도...")
-                if self.verify_login(browser):
-                    return True
-                    
-            self.auction_operation_signal.emit("새로운 로그인 시도...")
-            if self.loginProcess(browser):
-                new_cookies = browser.get_cookies()
-                if self.save_cookies(new_cookies, "auction_cookies.pkl"):
-                    browser.refresh()
+                    if "사용자 활동 검토" in browser.page_source:
+                        self.auction_operation_signal.emit(
+                            f"보안 검증 진행 중... ({elapsed}/{30}초) — 브라우저에서 직접 해결해 주세요."
+                        )
+                except Exception:
+                    pass
+                time.sleep(wait_interval)
+
+            time.sleep(1)
+
+            # ── 2단계: 기존 세션(쿠키)으로 로그인 여부 확인 ────────────────
+            self.auction_operation_signal.emit("기존 세션 확인 중...")
+            if self.verify_login(browser):
+                self.auction_operation_signal.emit("기존 세션으로 로그인 상태 확인 완료!")
+                return True
+
+            # ── 3단계: 수동 로그인 대기 ─────────────────────────────────────
+            self._login_event.clear()
+            self.auction_operation_signal.emit("━" * 30)
+            self.auction_operation_signal.emit("  브라우저에서 직접 로그인해 주세요.")
+            self.auction_operation_signal.emit("  로그인 후 자동 감지되거나,")
+            self.auction_operation_signal.emit("  [로그인 완료] 버튼을 눌러주세요.")
+            self.auction_operation_signal.emit("━" * 30)
+            self.login_needed_signal.emit()   # → GUI 버튼 활성화
+
+            # 백그라운드: 2초마다 로그인 상태 자동 감지
+            def _poll_login(b):
+                while not self._login_event.is_set():
                     time.sleep(2)
-                    return True
-                    
+                    try:
+                        if self.verify_login(b):
+                            self.auction_operation_signal.emit("로그인 자동 감지 완료!")
+                            self._login_event.set()
+                            break
+                    except Exception:
+                        pass   # 브라우저 닫힘 등 예외는 조용히 무시
+
+            threading.Thread(target=_poll_login, args=(browser,), daemon=True).start()
+
+            # 최대 5분(300초) 대기 — GUI 버튼 또는 자동 감지 시 즉시 해제
+            if self._login_event.wait(timeout=300):
+                self.auction_operation_signal.emit("로그인 확인 완료! 입찰 준비를 시작합니다...")
+                time.sleep(1)   # 페이지 안정화
+                return True
+
+            # 타임아웃
+            self.auction_operation_signal.emit("로그인 대기 시간 초과 (5분). 다시 시도해주세요.")
+            if finished:
+                finished.emit(False)
             return False
-            
+
         except Exception as e:
             import traceback
             error_msg = f"로그인 오류: {str(e)}\n{traceback.format_exc()}"
             self.auction_operation_signal.emit(error_msg)
-            print(error_msg)
             if finished:
                 finished.emit(False)
             return False
-
-        except TimeoutException:
-            self.auction_operation_signal.emit("로그인 시간지연으로 실패하였습니다.")
-            if finished:
-                finished.emit(False)
-            browser.close()
-        except (NoSuchElementException, WebDriverException) as e:
-            self.auction_operation_signal.emit("로그인 중 에러가 발생하여 다시 '입찰시작' 버튼을 클릭해 주세요.")
-            if finished:
-                finished.emit(False)
-            browser.close()
-
-        return False
 
     def bidWindow(self,browser):    
         try:

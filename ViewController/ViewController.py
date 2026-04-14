@@ -1,6 +1,7 @@
 from PySide6 import QtCore
-from PySide6.QtWidgets import QMainWindow, QMessageBox,QLineEdit
-from PySide6.QtCore import Qt,Signal,QObject,Slot
+from PySide6.QtWidgets import QMainWindow, QMessageBox, QLineEdit, QPushButton
+from PySide6.QtCore import Qt, Signal, QObject, Slot, QRect
+from PySide6.QtGui import QFont
 from ViewController.auctionUi import Ui_MainWindow
 from datetime import datetime
 import os
@@ -10,6 +11,7 @@ import json
 class ViewController(QMainWindow,QObject):
     start_crawling = Signal(list,list)
     stop_crawling = Signal(bool)
+    login_complete_signal = Signal()   # 로그인 완료 버튼 → AuctionController 경유 → Auction
     # stop_session_signal = Signal(bool)
 
     def __init__(self):
@@ -17,6 +19,33 @@ class ViewController(QMainWindow,QObject):
         
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+
+        # ── 로그인 완료 버튼 (수동 로그인 완료 트리거) ──────────────────────
+        # groupBox_2 (초 설정, y=328 h=241) 하단에 버튼 추가
+        # → groupBox_2 높이 50px 확장, 윈도우·진행상황 박스 함께 조정
+        self.ui.groupBox_2.resize(351, 291)
+        self.ui.groupBox_4.setGeometry(QRect(10, 629, 611, 311))
+        self.resize(634, 950)
+
+        _font_btn = QFont()
+        _font_btn.setPointSize(10)
+        _font_btn.setBold(True)
+
+        self.ui.btnLoginDone = QPushButton("로그인 완료  ✓", self.ui.groupBox_2)
+        self.ui.btnLoginDone.setObjectName("btnLoginDone")
+        self.ui.btnLoginDone.setGeometry(QRect(58, 242, 281, 41))
+        self.ui.btnLoginDone.setFont(_font_btn)
+        self.ui.btnLoginDone.setEnabled(False)
+        self.ui.btnLoginDone.setStyleSheet(
+            "QPushButton {"
+            "  background-color: #cccccc;"
+            "  color: #888888;"
+            "  border-radius: 5px;"
+            "}"
+        )
+        self.ui.btnLoginDone.clicked.connect(self.onLoginDone)
+        # ─────────────────────────────────────────────────────────────────────
+
         self.threadChk = False
         self.biddingTime = None
         self.load_input_data()
@@ -277,6 +306,36 @@ class ViewController(QMainWindow,QObject):
         self.ui.laboptimum.setText(f"네트워크 전체 지연시간 : {str(lst[4])}")
         self.ui.lnauctionRegTime.setText(str(lst[5]))
         self.save_input_data()
+
+    def enableLoginDoneBtn(self):
+        """Auction.login_needed_signal 수신 → 버튼 활성화 + 녹색 강조"""
+        self.ui.btnLoginDone.setEnabled(True)
+        self.ui.btnLoginDone.setStyleSheet(
+            "QPushButton {"
+            "  background-color: #4CAF50;"
+            "  color: white;"
+            "  border-radius: 5px;"
+            "  font-weight: bold;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: #45a049;"
+            "}"
+            "QPushButton:pressed {"
+            "  background-color: #3d8b40;"
+            "}"
+        )
+
+    def onLoginDone(self):
+        """사용자가 '로그인 완료' 버튼 클릭 → 버튼 비활성화 후 시그널 전송"""
+        self.ui.btnLoginDone.setEnabled(False)
+        self.ui.btnLoginDone.setStyleSheet(
+            "QPushButton {"
+            "  background-color: #cccccc;"
+            "  color: #888888;"
+            "  border-radius: 5px;"
+            "}"
+        )
+        self.login_complete_signal.emit()
 
     def stopBidding(self):
         if self.threadChk:
