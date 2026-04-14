@@ -1,0 +1,27 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# mypy cache
+.mypy_cache/
+
+# build output
+build/
+
+venv/
+dist/
+*.egg-info/
+.ipynb_checkpoints/
+# coverage
+.coverage
+.coverage.*
+
+# IDE / editor files
+.vscode/
+.idea/
+
+# temporary and backup files
+*.tmp
+*.temp
+*~
+backup.txt
