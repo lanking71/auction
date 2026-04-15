@@ -573,41 +573,69 @@ class Auction(QObject):
         return time_difference_result
 
     def check_time(self, target_time,bidprice,handlers,interrupted,browser,interval=0.0001):
+        # Windows 타이머 해상도를 1ms로 설정 (기본값 15.6ms → 정밀도 향상)
+        try:
+            import ctypes
+            ctypes.windll.winmm.timeBeginPeriod(1)
+            _timer_period_set = True
+        except Exception:
+            _timer_period_set = False
+
         self.refresh(browser)
         try:
             input_element = WebDriverWait(browser, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#ctrlPrice")))
             input_element.clear()
         except Exception as e:
             self.auction_operation_signal.emit("입찰금액 입력폼에 문제 발생..")
+            if _timer_period_set:
+                ctypes.windll.winmm.timeEndPeriod(1)
             return
+
+        def _adaptive_wait(target):
+            """남은 시간에 따라 대기 간격을 자동 조절 — CPU 절약 + 정밀도 유지"""
+            while True:
+                if interrupted():
+                    return False
+                now = datetime.now()
+                remaining = (target - now).total_seconds()
+                if remaining <= 0:
+                    return True
+                elif remaining > 2.0:
+                    time.sleep(0.5)       # 2초 이상 남음: 0.5초 단위 대기
+                elif remaining > 0.5:
+                    time.sleep(0.05)      # 0.5~2초: 50ms 단위 대기
+                elif remaining > 0.1:
+                    time.sleep(0.005)     # 100~500ms: 5ms 단위 대기
+                # 100ms 미만: 무대기 바쁜 루프 (최대 정밀도)
 
         if self.fixedplug:
             self.auction_operation_signal.emit("고정 금액 입찰입니다..................")
             input_element.send_keys(bidprice)
-            while True:
-                if interrupted():
-                    self.auction_operation_signal.emit("작업이 중단되었습니다.")
-                    return
-                now = datetime.now()
-                if now >= target_time:
-                    self.fixedbid(browser)
-                    end = datetime.now()
-                    self.bidding(browser)
-                    break
-                time.sleep(interval)
+            fired = _adaptive_wait(target_time)
+            if not fired:
+                self.auction_operation_signal.emit("작업이 중단되었습니다.")
+                if _timer_period_set:
+                    ctypes.windll.winmm.timeEndPeriod(1)
+                return
+            now = datetime.now()
+            self.fixedbid(browser)
+            end = datetime.now()
+            self.bidding(browser)
         else:
             self.auction_operation_signal.emit("일반 자동 입찰입니다...................")
-            while True:
-                if interrupted():
-                    self.auction_operation_signal.emit("작업이 중단되었습니다.")
-                    return
-                now = datetime.now()
-                if now >= target_time:
-                    self.refresh(browser,True)
-                    end = datetime.now()
-                    self.bidding(browser)
-                    break
-                time.sleep(interval)
+            fired = _adaptive_wait(target_time)
+            if not fired:
+                self.auction_operation_signal.emit("작업이 중단되었습니다.")
+                if _timer_period_set:
+                    ctypes.windll.winmm.timeEndPeriod(1)
+                return
+            now = datetime.now()
+            self.refresh(browser,True)
+            end = datetime.now()
+            self.bidding(browser)
+
+        if _timer_period_set:
+            ctypes.windll.winmm.timeEndPeriod(1)
 
         sec = (end - now)
         result = str(sec)
