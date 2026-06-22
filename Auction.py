@@ -14,6 +14,8 @@ import threading       # 여러 일을 동시에 할 수 있게 해주는 도구
 import time            # 시간 관련 기능 (잠시 기다리기 등)
 import sys             # 프로그램 실행 환경 정보 (exe로 배포됐는지, 개발 중인지 등)
 import os              # 파일/폴더 경로 다루기
+import subprocess      # 외부 프로세스 실행 (Chrome 버전 감지용)
+import re              # 정규식 (문자열에서 버전 번호 추출용)
 
 import requests as rq  # 인터넷 주소로 웹페이지 내용을 가져오는 도구 (rq라는 별명으로 사용)
 
@@ -291,7 +293,10 @@ class Auction(QObject):
             self.closing_time = closing_time[0]   # 마감 시각 (예: "14:30:00.500")
 
             # 크롬 브라우저 열기 → 로그인 → 상품 정보 수집 순서로 진행
-            self.setupbrowser()
+            if not self.setupbrowser():
+                if finished:
+                    finished.emit(False)
+                return
             if self.loginstart(finished):
                 self.startCrawling(interrupted, finished)
 
@@ -335,6 +340,50 @@ class Auction(QObject):
 
 
     # ============================================================
+    # _get_chrome_version() — 설치된 Chrome 메이저 버전 자동 감지
+    # ============================================================
+    @staticmethod
+    def _get_chrome_version():
+        # Windows 레지스트리 경로 여러 곳 순서대로 시도
+        reg_paths = [
+            r'HKLM\SOFTWARE\Google\Chrome\BLBeacon',
+            r'HKLM\SOFTWARE\WOW6432Node\Google\Chrome\BLBeacon',
+            r'HKCU\SOFTWARE\Google\Chrome\BLBeacon',
+        ]
+        for path in reg_paths:
+            try:
+                result = subprocess.run(
+                    ['reg', 'query', path, '/v', 'version'],
+                    capture_output=True, text=True
+                )
+                match = re.search(r'(\d+)\.\d+\.\d+\.\d+', result.stdout)
+                if match:
+                    return int(match.group(1))
+            except Exception:
+                continue
+
+        # 레지스트리 실패 시 Chrome 실행파일에서 직접 읽기
+        chrome_paths = [
+            r'C:\Program Files\Google\Chrome\Application\chrome.exe',
+            r'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
+        ]
+        for cp in chrome_paths:
+            if os.path.exists(cp):
+                try:
+                    result = subprocess.run(
+                        ['powershell', '-Command',
+                         f'(Get-Item "{cp}").VersionInfo.ProductVersion'],
+                        capture_output=True, text=True
+                    )
+                    match = re.search(r'(\d+)\.', result.stdout)
+                    if match:
+                        return int(match.group(1))
+                except Exception:
+                    continue
+        return None
+
+
+    # ============================================================
     # setupbrowser() — 크롬 브라우저를 열고 봇 탐지 우회 설정
     # ============================================================
     def setupbrowser(self):
@@ -347,6 +396,8 @@ class Auction(QObject):
           성공: 설정된 browser 객체
           실패: False
         """
+        self.browser = None   # 실패 시에도 속성이 존재하도록 초기화
+        chrome_ver = self._get_chrome_version()   # 설치된 Chrome 버전 자동 감지
         options = uc.ChromeOptions()   # 크롬 실행 옵션 설정 객체 생성
 
         # ── 봇 탐지 우회 설정들 ──────────────────────────────────────────
@@ -384,7 +435,8 @@ class Auction(QObject):
             # → 봇 탐지 시스템을 더 효과적으로 우회
             self.browser = uc.Chrome(
                 options=options,
-                use_subprocess=True    # 별도 프로세스로 실행 (안정성 향상)
+                use_subprocess=True,                                    # 별도 프로세스로 실행
+                version_main=chrome_ver if chrome_ver else 149          # 감지된 버전, 실패 시 149
             )
 
             # ── CDP 명령어로 자동화 흔적 제거 ────────────────────────────
