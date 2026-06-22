@@ -62,7 +62,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['au4.png'],
+    icon=['au4.ico'],
 )
 coll = COLLECT(
     exe,

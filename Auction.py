@@ -1044,6 +1044,39 @@ class Auction(QObject):
 
 
     # ============================================================
+    # enable_fast_refresh() — 입찰창 새로고침 속도 개선 (리소스 차단)
+    # ============================================================
+    def enable_fast_refresh(self, browser):
+        """
+        입찰 마감 시각에 실행되는 browser.refresh()의 속도를 높이기 위해,
+        CDP(Chrome DevTools Protocol)로 이미지·폰트·동영상·광고/분석 스크립트
+        요청을 차단합니다.
+
+        비유: 출발선에 서기 전, 신발에 묻은 불필요한 짐(이미지·광고 등)을
+              미리 다 떼어내서 더 가볍게 달릴 수 있게 만드는 것
+
+        주의: 가격/입찰 폼(HTML, CSS, 핵심 JS)은 차단하지 않으므로
+              페이지 기능에는 영향이 없습니다.
+        """
+        try:
+            browser.execute_cdp_cmd('Network.enable', {})
+            browser.execute_cdp_cmd('Network.setBlockedURLs', {
+                'urls': [
+                    '*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp', '*.svg', '*.ico', '*.bmp',
+                    '*.woff', '*.woff2', '*.ttf', '*.otf', '*.eot',
+                    '*.mp4', '*.webm', '*.avi',
+                    '*://*.googlesyndication.com/*',
+                    '*://*.google-analytics.com/*',
+                    '*://*.doubleclick.net/*',
+                    '*://*.criteo.com/*',
+                    '*://*.adsystem.*/*',
+                ]
+            })
+        except Exception as e:
+            self.auction_operation_signal.emit(f"리소스 차단 설정 실패(무시 가능): {e}")
+
+
+    # ============================================================
     # check_time() — 입찰 타이밍 정밀 제어 (핵심 중의 핵심!)
     # ============================================================
     def check_time(self, target_time, bidprice, handlers, interrupted, browser, interval=0.0001):
@@ -1078,6 +1111,9 @@ class Auction(QObject):
             _timer_period_set = True   # 나중에 원상복구 해야 함을 기억
         except Exception:
             _timer_period_set = False  # Windows 외 환경이거나 권한 없으면 그냥 진행
+
+        # ── 입찰창 새로고침 속도 개선: 이미지/폰트/광고 등 불필요한 리소스 차단 ─────
+        self.enable_fast_refresh(browser)
 
         # ── 입찰 창 준비: 새로고침 + 가격 입력창 비우기 ─────────────────────
         self.refresh(browser)   # 입찰 창 새로고침 (최신 상태로 갱신)
