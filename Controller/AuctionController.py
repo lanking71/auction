@@ -68,11 +68,9 @@ class AuctionController(QObject):
         self.view.viewbid_results(lst)
 
     def auctionStop(self,stop):
-        self.view.setThreadStatus(False)
         if stop and hasattr(self,'worker'):
             self.worker.stop()
-            self.crawling.message_view("입찰이 취소되었습니다..")
-            self.crawling.auction_operation_signal.emit("취소 버튼을 클릭하였습니다.")
+            self.crawling.auction_operation_signal.emit("취소 요청을 전달했습니다. 작업별 자원을 정리하는 중입니다.")
 
 
     def auctionStart(self,startData,secondsWindow):

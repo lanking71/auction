@@ -1,5 +1,5 @@
 from PySide6 import QtCore
-from PySide6.QtWidgets import QMainWindow, QMessageBox, QLineEdit, QPushButton
+from PySide6.QtWidgets import QMainWindow, QMessageBox, QLineEdit, QPushButton, QLabel, QDoubleSpinBox
 from PySide6.QtCore import Qt, Signal, QObject, Slot, QRect
 from PySide6.QtGui import QFont
 from ViewController.auctionUi import Ui_MainWindow
@@ -7,15 +7,16 @@ from datetime import datetime
 import os
 import sys
 import json
+from app_paths import data_path
+from browser_runtime import BrowserBundleError, load_browser_bundle
+from bid_models import BidTaskSpec
+from latency import LatencyHistory
+from secure_storage import delete_password, get_password, migrate_legacy_files, save_config, save_password
 
 
 def _data_path(filename):
     """개발환경 / PyInstaller exe 양쪽에서 데이터 파일의 절대경로 반환"""
-    if getattr(sys, 'frozen', False):
-        base = os.path.dirname(sys.executable)
-    else:
-        base = os.getcwd()
-    return os.path.join(base, filename)
+    return str(data_path(filename))
 
 
 class ViewController(QMainWindow,QObject):
@@ -29,6 +30,10 @@ class ViewController(QMainWindow,QObject):
         
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        try:
+            migrate_legacy_files()
+        except Exception as exc:
+            QMessageBox.warning(self, "보안 데이터 마이그레이션", f"기존 데이터 마이그레이션 실패: {exc}")
 
         # ── 로그인 완료 버튼 (수동 로그인 완료 트리거) ──────────────────────
         # groupBox_2 (초 설정, y=328 h=241) 하단에 버튼 추가
@@ -54,6 +59,23 @@ class ViewController(QMainWindow,QObject):
             "}"
         )
         self.ui.btnLoginDone.clicked.connect(self.onLoginDone)
+        self.browserStatus = QLabel(self)
+        self.browserStatus.setGeometry(QRect(10, 940, 610, 20))
+        self.offsetLabel = QLabel(self)
+        self.offsetLabel.setGeometry(QRect(10, 962, 380, 22))
+        self.manualOffset = QDoubleSpinBox(self)
+        self.manualOffset.setGeometry(QRect(395, 960, 105, 24))
+        self.manualOffset.setRange(-500.0, 500.0)
+        self.manualOffset.setDecimals(3)
+        self.manualOffset.setSuffix(" ms")
+        self.resize(634, 995)
+        auto_ms = LatencyHistory().current_ms()
+        self.offsetLabel.setText(f"자동 보정 {auto_ms:.3f} ms / 수동 보정")
+        try:
+            bundle = load_browser_bundle()
+            self.browserStatus.setText(f"앱 전용 Chrome {bundle.version}: 정상")
+        except BrowserBundleError as exc:
+            self.browserStatus.setText(f"앱 전용 Chrome: 사용 불가 ({exc})")
         # ─────────────────────────────────────────────────────────────────────
 
         self.threadChk = False
@@ -103,7 +125,8 @@ class ViewController(QMainWindow,QObject):
 
             # 선택된 데이터를 기존 데이터 목록에서 제거합니다.
             for selected_item in selected_data:
-                data_list = [account for account in data_list if not (account['id'] == selected_item['id'] and account['pw'] == selected_item['pw'])]
+                data_list = [account for account in data_list if account['id'] != selected_item['id']]
+                delete_password(selected_item['id'])
 
             # 변견됭 데이터를 파일에 다시 씁니다.
             with open(_data_path('account_data.json'),'w') as f:
@@ -115,8 +138,9 @@ class ViewController(QMainWindow,QObject):
     def load_id_list(self,item):
         data = json.loads(item.text())
         self.ui.linID.setText(data['id'])
-        self.ui.linPW.setText(data['pw'])
+        self.ui.linPW.setText(get_password(data['id']) or "")
         self.save_input_data()
+        save_password(self.ui.linID.text().strip(), self.ui.linPW.text().strip())
 
     def loadAccountsToList(self):
         try:
@@ -125,8 +149,19 @@ class ViewController(QMainWindow,QObject):
         except (FileNotFoundError, json.JSONDecodeError):
             data_list = []
 
+        migrated = []
         for account in data_list:
-            self.ui.listAccount.addItem(json.dumps(account))
+            account_id = account.get('id', '')
+            if account_id and account.get('pw'):
+                save_password(account_id, account['pw'])
+            if account_id:
+                migrated.append({'id': account_id})
+                self.ui.listAccount.addItem(json.dumps({'id': account_id}, ensure_ascii=False))
+        if migrated != data_list:
+            temp = _data_path('account_data.tmp')
+            with open(temp, 'w', encoding='utf-8') as stream:
+                json.dump(migrated, stream, ensure_ascii=False)
+            os.replace(temp, _data_path('account_data.json'))
 
     def accountRegStart(self):
         input_field = {
@@ -142,13 +177,14 @@ class ViewController(QMainWindow,QObject):
             if field == self.ui.linID:
                 account_data['id'] = text_value
             else:
-                account_data['pw'] = text_value
+                save_password(self.ui.linID.text().strip(), text_value)
 
         try:
             with open(_data_path('account_data.json'),'r') as f:
                 data_list = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             data_list = []
+        data_list = [account for account in data_list if account.get('id') != account_data['id']]
         data_list.append(account_data)
 
         with open(_data_path('account_data.json'),'w') as f:
@@ -203,9 +239,7 @@ class ViewController(QMainWindow,QObject):
         if self.threadChk:
             self.view_message("압찰이 실행중에 있습니다.")
         else:
-            os.system("taskkill /f /im chrome.exe")
-            os.system("taskkill /f /im chromedriver.exe")
-            self.view_message("모든 크롬 브라우저를 종료했습니다.")
+            self.view_message("사용자의 Chrome은 종료하지 않습니다. 앱 작업은 [입찰 취소]로 종료하세요.")
 
     def on_fixedPrice_chaged(self, text, input_field_name):
 
@@ -371,7 +405,7 @@ class ViewController(QMainWindow,QObject):
             'additionalPrice': self.ui.linAdditionalPrice.text(),
             'fixedPrice': self.ui.linfixedPrice.text(),
             'auctionID': self.ui.linID.text(),
-            'auctionPW': self.ui.linPW.text(),
+            'manualOffsetMs': self.manualOffset.value(),
             'closingTime': self.ui.oneWindow.text(),
             'auctionRegTime':self.ui.lnauctionRegTime.text(),
             'range1':self.ui.range1.text(),
@@ -382,19 +416,19 @@ class ViewController(QMainWindow,QObject):
             'clickTime3':self.ui.clickTime3.text()
         }
 
-        with open(_data_path('input_data.json'),'w') as file:
-            json.dump(input_data, file)
+        save_config(input_data)
 
     def load_input_data(self):
         try:
-            with open(_data_path("input_data.json"),'r') as file:
+            with open(_data_path("config.json"),'r', encoding='utf-8') as file:
                 input_data = json.load(file)
             self.ui.linUrl.setText(input_data['url'])
             self.ui.linMaxPrice.setText(input_data['maxPrice'])
             self.ui.linAdditionalPrice.setText(input_data['additionalPrice'])
             self.ui.linfixedPrice.setText(input_data['fixedPrice'])
             self.ui.linID.setText(input_data['auctionID'])
-            self.ui.linPW.setText(input_data['auctionPW'])
+            self.ui.linPW.setText(get_password(input_data.get('auctionID', '')) or '')
+            self.manualOffset.setValue(float(input_data.get('manualOffsetMs', 0.0)))
             self.ui.oneWindow.setText(input_data['closingTime'])
             self.biddingTime = input_data['closingTime'][-3:] + "000"
             self.ui.lnauctionRegTime.setText(input_data['auctionRegTime'])
@@ -514,8 +548,18 @@ class ViewController(QMainWindow,QObject):
             fixedclosetimelst.insert(0, closing_time)
 
             fixedPricelst.insert(0, self.ui.linfixedPrice.text().replace(',', ''))
-            start_data = [self.ui.linUrl.text(), fixedPricelst, self.ui.linID.text().strip(),self.ui.linPW.text().strip()]
-            self.start_crawling.emit(start_data, fixedclosetimelst)
+            specs = [
+                BidTaskSpec(
+                    url=self.ui.linUrl.text().strip(),
+                    price=int(price),
+                    target_server_time=datetime.strptime(close_time, '%y-%m-%d %H:%M:%S.%f'),
+                    account_id=self.ui.linID.text().strip(),
+                    manual_offset_ms=self.manualOffset.value(),
+                )
+                for price, close_time in zip(fixedPricelst, fixedclosetimelst)
+                if price and price != "0"
+            ]
+            self.start_crawling.emit(specs, [])
         else:
             closing_timelst = [closing_time]
             start_data = [self.ui.linUrl.text(), self.ui.linMaxPrice.text().replace(',',''),self.ui.linAdditionalPrice.text().replace(',',''),self.ui.linID.text().strip(), self.ui.linPW.text().strip()]

@@ -14,8 +14,8 @@ import threading       # 여러 일을 동시에 할 수 있게 해주는 도구
 import time            # 시간 관련 기능 (잠시 기다리기 등)
 import sys             # 프로그램 실행 환경 정보 (exe로 배포됐는지, 개발 중인지 등)
 import os              # 파일/폴더 경로 다루기
-import subprocess      # 외부 프로세스 실행 (Chrome 버전 감지용)
-import re              # 정규식 (문자열에서 버전 번호 추출용)
+import json
+from urllib.parse import urlparse
 
 import requests as rq  # 인터넷 주소로 웹페이지 내용을 가져오는 도구 (rq라는 별명으로 사용)
 
@@ -29,11 +29,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.wait import WebDriverWait
                        # 지정한 조건이 될 때까지 최대 N초 기다리는 기능
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-                       # 크롬 드라이버 버전 자동 관리 (크롬 업데이트 시 자동 대응)
 
 from bs4 import BeautifulSoup as BS
                        # HTML 페이지를 분석해서 원하는 정보만 꺼내는 도구
@@ -46,14 +41,15 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QMessageBox  # 팝업 알림창
 from multiprocessing import Process        # 별도 프로세스 실행 (현재 미사용)
 import keyboard        # 키보드 입력 감지 (ESC 긴급중단용)
-import pickle          # 파이썬 데이터를 파일에 저장하고 불러오는 도구
-                       # 비유: 데이터를 냉동 보관했다가 나중에 해동해서 쓰는 것
-import undetected_chromedriver as uc
-                       # 봇(자동화) 탐지를 피하는 특수 크롬 드라이버
-                       # 비유: 변장한 크롬 — 옥션 서버가 "이건 사람이 쓰는 브라우저구나"라고 착각하게 만듦
 from datetime import datetime   # (위에서 이미 import 했지만 중복 선언)
-from selenium_stealth import stealth
-                       # 브라우저가 자동화 프로그램임을 숨기는 추가 스텔스 설정
+from app_paths import data_path
+from bid_logging import JsonlBidLogger, sanitize_message
+from bid_models import BidTaskSpec
+from browser_runtime import BrowserBundleError, create_browser
+from latency import LatencyHistory
+from precision_scheduler import arm_browser_timer, execution_time, monotonic_deadline, wait_until_ns
+from secure_storage import load_cookies as load_secure_cookies, save_cookies as save_secure_cookies
+from secure_storage import get_password
 
 
 # ============================================================
@@ -95,6 +91,13 @@ class Auction(QObject):
         # 비유: 요리사마다 자기 도마가 따로 있는 것
 
         self._login_event = threading.Event()
+        self.latency_history = LatencyHistory()
+        self.bid_logger = JsonlBidLogger()
+        try:
+            config = json.loads(data_path("config.json").read_text(encoding="utf-8"))
+            self.manual_offset_ms = max(-500.0, min(500.0, float(config.get("manualOffsetMs", 0.0))))
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            self.manual_offset_ms = 0.0
         # 로그인 완료를 기다리는 신호기
         # 비유: 신호등처럼, 로그인이 끝나면 초록불(set)이 켜져서 다음 단계로 진행
 
@@ -112,15 +115,7 @@ class Auction(QObject):
             개발 중:  C:/Aucton/auction_cookies.pkl
             exe 실행: C:/바탕화면/AuctionApp/auction_cookies.pkl  (exe 옆 폴더)
         """
-        if getattr(sys, 'frozen', False):
-            # PyInstaller로 만든 exe 파일로 실행 중인 경우
-            # exe 파일이 있는 폴더를 기준으로 경로를 만듦
-            base = os.path.dirname(sys.executable)
-        else:
-            # 일반 파이썬 개발 환경에서 실행 중인 경우
-            # 현재 작업 폴더(프로젝트 루트)를 기준으로 경로를 만듦
-            base = os.getcwd()
-        return os.path.join(base, filename)
+        return str(data_path(filename))
 
 
     # ============================================================
@@ -157,8 +152,9 @@ class Auction(QObject):
         """
         try:
             # 저장된 쿠키 파일을 열어서 데이터를 불러옴 (pickle = 냉동 데이터 해동)
-            with open(self._data_path("auction_cookies.pkl"), "rb") as f:
-                cookies = pickle.load(f)
+            cookies = load_secure_cookies()
+            if not cookies:
+                return None
 
             # 새로운 인터넷 세션(연결) 생성
             session = rq.Session()
@@ -183,7 +179,7 @@ class Auction(QObject):
     # ============================================================
     # process_task() — 고정가 모드에서 스레드 하나당 실행되는 작업
     # ============================================================
-    def process_task(self, closing_time, interrupted, finished):
+    def process_task(self, closing_time, bidprice, interrupted, finished):
         """
         고정가 모드(fixedMultipleBid)에서 각 입찰 스레드가 실행하는 함수.
         브라우저 하나를 열고 → 로그인 → 상품 정보 수집 → 입찰 대기를 순서대로 진행합니다.
@@ -203,16 +199,23 @@ class Auction(QObject):
         # 이 스레드만의 데이터 공간에 마감시간, 중단함수, 완료신호 저장
         self.local_data.thread_data[thread_id] = {
             'closing_time': closing_time,
+            'bidprice': bidprice,
             'interrupted': interrupted,
-            'finished': finished
+            'finished': finished,
+            'session': None,
+            'success': False,
         }
 
         # 이 스레드 전용 크롬 브라우저 열기 (각 스레드가 자기 브라우저를 가짐)
-        self.local_data.thread_data[thread_id]['browser'] = self.setupbrowser()
-
-        # 로그인이 성공하면 상품 크롤링(정보 수집) 시작
-        if self.loginstart(finished):
-            self.startCrawling(interrupted)
+        browser = self.setupbrowser()
+        self.local_data.thread_data[thread_id]['browser'] = browser
+        if not browser or interrupted():
+            return
+        try:
+            if self.loginstart(None) and not interrupted():
+                self.startCrawling(interrupted, None)
+        finally:
+            self.cleanup_resources(browser, None)
 
 
     # ============================================================
@@ -229,11 +232,14 @@ class Auction(QObject):
         봇 탐지 방지를 위해 스레드 시작 사이에 20초 간격을 둡니다.
         (여러 브라우저가 동시에 갑자기 열리면 의심받을 수 있음)
         """
-        taskCount = len(closing_time)   # 입찰 건수 (= 마감시간 개수)
+        taskCount = min(len(closing_time), len(self.fixedPricelst))
 
         # 각 스레드에 넘길 인자 목록 만들기
         # 예) [(마감시간1, interrupted, finished), (마감시간2, ...), ...]
-        params_list = [(closing_time[i], interrupted, finished) for i in range(taskCount)]
+        params_list = [
+            (closing_time[i], self.fixedPricelst[i], interrupted, finished)
+            for i in range(taskCount)
+        ]
 
         threads = []   # 생성된 스레드들을 담아두는 목록
 
@@ -242,7 +248,12 @@ class Auction(QObject):
             thread = threading.Thread(target=self.process_task, args=params)
             threads.append(thread)
             thread.start()          # 스레드 시작 (비동기 실행)
-            time.sleep(20)          # 봇 탐지 방지: 다음 스레드 시작 전 20초 대기
+            for _ in range(200):
+                if interrupted():
+                    break
+                time.sleep(0.1)
+            if interrupted():
+                break
 
         # 모든 스레드가 끝날 때까지 기다리기
         for thread in threads:
@@ -271,6 +282,20 @@ class Auction(QObject):
           interrupted  : 중단 여부 확인 함수
           finished     : 완료 신호
         """
+        if startData and isinstance(startData[0], BidTaskSpec):
+            specs = startData
+            self.fixedplug = True
+            self.url = specs[0].url
+            self.auctionID = specs[0].account_id
+            self.auctionPW = get_password(self.auctionID) or ""
+            self.manual_offset_ms = specs[0].manual_offset_ms
+            self.maxPrice = 0
+            self.AdditionalAmount = 0
+            self.fixedPricelst = [spec.price for spec in specs]
+            closing_times = [spec.target_server_time.strftime('%y-%m-%d %H:%M:%S.%f') for spec in specs]
+            self.fixedMultipleBid(closing_times, interrupted, finished)
+            return
+
         self.fixedplug = False   # 기본값: 일반 모드 (고정가 모드가 아님)
         self.url = startData[0]  # 입찰할 상품 URL 저장
 
@@ -340,50 +365,6 @@ class Auction(QObject):
 
 
     # ============================================================
-    # _get_chrome_version() — 설치된 Chrome 메이저 버전 자동 감지
-    # ============================================================
-    @staticmethod
-    def _get_chrome_version():
-        # Windows 레지스트리 경로 여러 곳 순서대로 시도
-        reg_paths = [
-            r'HKLM\SOFTWARE\Google\Chrome\BLBeacon',
-            r'HKLM\SOFTWARE\WOW6432Node\Google\Chrome\BLBeacon',
-            r'HKCU\SOFTWARE\Google\Chrome\BLBeacon',
-        ]
-        for path in reg_paths:
-            try:
-                result = subprocess.run(
-                    ['reg', 'query', path, '/v', 'version'],
-                    capture_output=True, text=True
-                )
-                match = re.search(r'(\d+)\.\d+\.\d+\.\d+', result.stdout)
-                if match:
-                    return int(match.group(1))
-            except Exception:
-                continue
-
-        # 레지스트리 실패 시 Chrome 실행파일에서 직접 읽기
-        chrome_paths = [
-            r'C:\Program Files\Google\Chrome\Application\chrome.exe',
-            r'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
-        ]
-        for cp in chrome_paths:
-            if os.path.exists(cp):
-                try:
-                    result = subprocess.run(
-                        ['powershell', '-Command',
-                         f'(Get-Item "{cp}").VersionInfo.ProductVersion'],
-                        capture_output=True, text=True
-                    )
-                    match = re.search(r'(\d+)\.', result.stdout)
-                    if match:
-                        return int(match.group(1))
-                except Exception:
-                    continue
-        return None
-
-
-    # ============================================================
     # setupbrowser() — 크롬 브라우저를 열고 봇 탐지 우회 설정
     # ============================================================
     def setupbrowser(self):
@@ -396,81 +377,17 @@ class Auction(QObject):
           성공: 설정된 browser 객체
           실패: False
         """
-        self.browser = None   # 실패 시에도 속성이 존재하도록 초기화
-        chrome_ver = self._get_chrome_version()   # 설치된 Chrome 버전 자동 감지
-        options = uc.ChromeOptions()   # 크롬 실행 옵션 설정 객체 생성
-
-        # ── 봇 탐지 우회 설정들 ──────────────────────────────────────────
-        # (주석 처리된 --headless=new: 창 없이 백그라운드 실행 — 현재 비활성화)
-        # options.add_argument('--headless=new')
-
-        options.add_argument('--no-sandbox')
-        # 샌드박스(보안 격리) 비활성화 — 일부 환경에서 크롬이 안 열릴 때 필요
-
-        options.add_argument('--window-size=1024,768')
-        # 브라우저 창 크기를 1024x768로 설정 (너무 작거나 크면 의심받을 수 있음)
-
-        options.add_argument('--disable-blink-features=AutomationControlled')
-        # "이 브라우저는 자동화 프로그램에 의해 제어되고 있습니다" 표시 제거
-
-        options.add_argument("--disable-features=IsolateOrigins,site-per-process")
-        # 사이트 격리 기능 비활성화 (여러 창 간 통신에 필요)
-
-        options.add_argument('--disable-extensions')    # 확장 프로그램 비활성화
-        options.add_argument('--disable-automation')    # 자동화 모드 표시 제거
-        options.add_argument('--disable-dev-shm-usage') # 공유 메모리 문제 방지
-        options.add_argument('--disable-web-security')  # 웹 보안 정책 완화
-        options.add_argument('--allow-running-insecure-content')  # 혼합 콘텐츠 허용
-
-        options.add_argument(
-            f'--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-            f'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
-        )
-        # User-Agent 설정: 서버에게 "나는 일반 사용자 크롬 브라우저야"라고 속이는 신분증
-        # 비유: 경비원에게 신분증을 보여줄 때, 로봇이 아닌 사람 신분증을 보여주는 것
-
+        self.browser = None
         try:
-            # ── undetected-chromedriver로 크롬 실행 ──────────────────────
-            # 일반 selenium이 아닌 uc(undetected-chromedriver)를 사용
-            # → 봇 탐지 시스템을 더 효과적으로 우회
-            self.browser = uc.Chrome(
-                options=options,
-                use_subprocess=True,                                    # 별도 프로세스로 실행
-                version_main=chrome_ver if chrome_ver else 149          # 감지된 버전, 실패 시 149
+            browser, degraded = create_browser(self.auction_operation_signal.emit)
+            self.browser = browser
+            self.auction_operation_signal.emit(
+                "앱 전용 Chrome 시작 완료" + (" (표준 Selenium fallback)" if degraded else "")
             )
-
-            # ── CDP 명령어로 자동화 흔적 제거 ────────────────────────────
-            # CDP(Chrome DevTools Protocol): 브라우저 내부를 직접 제어하는 방법
-            # 아래 코드는 크롬 드라이버가 남기는 특정 변수명들을 페이지 로드 시마다 삭제
-            # (옥션 서버가 이 변수를 보고 봇인지 판단하기 때문)
-            self.browser.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
-                'source': '''
-                    delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
-                    delete window.cdc_adoQpoasnfa76pfcZLmcfl_Promise;
-                    delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
-                '''
-            })
-            # 비유: 집에 손님이 오기 전에 "청소 도우미가 왔다 갔음" 흔적을 지우는 것
-
-            # 창 크기 재적용 (옵션 설정 후 한 번 더 확실히 고정)
-            self.browser.set_window_size(1024, 768)
-            time.sleep(1)   # 창 크기 변경이 적용될 때까지 1초 대기
-
-            # 페이지 로딩 관련 타임아웃 설정
-            self.browser.set_page_load_timeout(30)
-            # 페이지가 30초 안에 안 열리면 오류 처리
-
-            self.browser.implicitly_wait(10)
-            # 요소(버튼, 입력창 등)를 찾을 때 최대 10초까지 기다리기
-            # (페이지가 느리게 로딩되더라도 조급하게 포기하지 않음)
-
-            return self.browser   # 설정 완료된 브라우저 반환
-
-        except Exception as e:
-            # 브라우저 실행 실패 시 오류 메시지를 화면에 전송
-            self.auction_operation_signal.emit(f"브라우저 설정 실패: {str(e)}")
+            return browser
+        except BrowserBundleError as exc:
+            self.auction_operation_signal.emit(f"브라우저 검증 실패: {sanitize_message(str(exc))}")
             return False
-
 
     # ============================================================
     # validate_cookies() — 필수 쿠키가 모두 있는지 검사
@@ -550,9 +467,7 @@ class Auction(QObject):
                 return False
 
             # 파일 경로 생성 후 pickle로 저장 (냉동 보관)
-            filepath = self._data_path(filename)
-            with open(filepath, "wb") as f:
-                pickle.dump(cookies, f)
+            save_secure_cookies(cookies)
 
             # 저장한 쿠키를 현재 브라우저에도 바로 적용
             for cookie in cookies:
@@ -1214,18 +1129,46 @@ class Auction(QObject):
             # 가격을 미리 입력해두고, 마감 시각에 버튼만 클릭
             self.auction_operation_signal.emit("고정 금액 입찰입니다..................")
             input_element.send_keys(bidprice)   # 입찰가 미리 입력 (마감 전에 준비 완료)
-
-            fired = _adaptive_wait(target_time)   # 마감 시각까지 정밀 대기
-            if not fired:
-                # 사용자가 중단 요청한 경우
+            automatic_ms = self.latency_history.current_ms()
+            manual_ms = float(getattr(self, "manual_offset_ms", 0.0))
+            local_target = execution_time(target_time, automatic_ms, manual_ms)
+            deadline_ns = monotonic_deadline(local_target)
+            self.auction_operation_signal.emit(
+                f"지연 보정: 자동 {automatic_ms:.3f}ms + 수동 {manual_ms:.3f}ms = "
+                f"{automatic_ms + manual_ms:.3f}ms, 실행 예정 {local_target}"
+            )
+            if interrupted():
                 self.auction_operation_signal.emit("작업이 중단되었습니다.")
-                if _timer_period_set:
-                    ctypes.windll.winmm.timeEndPeriod(1)
                 return
-
-            now = datetime.now()         # 실제 입찰 시각 기록 (결과 분석용)
-            self.fixedbid(browser)       # 입찰 버튼 클릭! (버튼만 누르면 되므로 매우 빠름)
-            end = datetime.now()         # 버튼 클릭 완료 시각 기록
+            now = datetime.now()
+            scheduler_fired = None
+            browser_timing = None
+            try:
+                # Browser performance.now() owns the final 20 ms and the last 2 ms spin.
+                browser_timing = arm_browser_timer(browser, deadline_ns)
+                scheduler_fired = datetime.now()
+                if not browser_timing.get("ok"):
+                    raise RuntimeError(browser_timing.get("error", "browser timer failed"))
+            except Exception as timer_error:
+                self.auction_operation_signal.emit(
+                    f"브라우저 타이머 장전 실패, Python 단조시계 fallback: {sanitize_message(str(timer_error))}"
+                )
+                cancel_event = threading.Event()
+                if interrupted():
+                    cancel_event.set()
+                if not wait_until_ns(deadline_ns, cancel_event):
+                    return
+                scheduler_fired = datetime.now()
+                self.fixedbid(browser)
+            end = datetime.now()
+            self.bid_logger.write({
+                "event": "bid_fired", "mode": "fixed", "account_id": self.auctionID,
+                "price": bidprice, "target_server_time": target_time,
+                "automatic_offset_ms": automatic_ms, "manual_offset_ms": manual_ms,
+                "applied_offset_ms": automatic_ms + manual_ms,
+                "scheduler_fired_at": scheduler_fired, "browser_timing": browser_timing,
+                "webdriver_returned_at": end,
+            })
             self.bidding(browser)        # 결과 확인창 닫기
         else:
             # ── 일반 모드 ─────────────────────────────────────────────────
@@ -1276,6 +1219,7 @@ class Auction(QObject):
 
         # 네트워크 지연시간 = 내 PC 클릭 시각 vs 서버 등록 시각 차이
         time_difference_result = self.time_difference_calculation(bidder_time_text, now)
+        self.latency_history.record(time_difference_result * 1000.0, success=True)
         self.auction_operation_signal.emit(f"옥션 네트워크 지연시간 : {time_difference_result}")
 
         # 내 아이디 (뒤 3자리 제거 — 서버에서 ***로 마스킹하기 때문에 맞춰서 비교)
@@ -1285,12 +1229,16 @@ class Auction(QObject):
         # 1위 입찰자가 나인지 확인해서 성공/실패 판단
         if nameID == auctionID:
             self.successCheck = True
+            if hasattr(self.local_data, "thread_data"):
+                self.local_data.thread_data[threading.get_ident()]["success"] = True
             self.auction_operation_signal.emit(f"입찰에 성공하였습니다. 입찰금액 : {bidprice}")
             self.auction_bid_results.emit(
                 [bidprice, now, bidprice, click_time, time_difference_result, bidder_time_text]
             )
         else:
             self.successCheck = False
+            if hasattr(self.local_data, "thread_data"):
+                self.local_data.thread_data[threading.get_ident()]["success"] = False
             self.auction_operation_signal.emit(f"입찰에 실패하였습니다. 입찰금액 : {bidprice}")
             self.auction_bid_results.emit(
                 [bidprice, now, bidprice, click_time, time_difference_result, bidder_time_text]
@@ -1320,11 +1268,24 @@ class Auction(QObject):
         # ── 사용할 브라우저 선택 (단일/멀티스레드 구분) ──────────────────────
         if hasattr(self.local_data, "thread_data"):
             thread_id = threading.get_ident()
-            browser = self.local_data.thread_data[thread_id]["browser"]
+            task_data = self.local_data.thread_data[thread_id]
+            browser = task_data["browser"]
+            self.closing_time = task_data["closing_time"]
         else:
+            task_data = None
             browser = self.browser
 
         # ── 상품 페이지 열기 및 상태 초기화 ─────────────────────────────────
+        parsed_url = urlparse(self.url)
+        allowed_hosts = {"auction.co.kr", "www.auction.co.kr", "itempage3.auction.co.kr"}
+        if parsed_url.scheme != "https" or not any(
+            parsed_url.hostname == host or (parsed_url.hostname or "").endswith("." + host)
+            for host in allowed_hosts
+        ):
+            self.auction_operation_signal.emit("HTTPS 옥션 상품 URL만 사용할 수 있습니다.")
+            return
+        if interrupted():
+            return
         browser.get(self.url)         # 입찰할 상품 URL로 이동
         self.successCheck = False     # 입찰 성공 여부 초기화
         self.stop_refresh = False     # 새로고침 중단 플래그 초기화
@@ -1333,22 +1294,24 @@ class Auction(QObject):
 
         # ── 쿠키 세션 준비 ───────────────────────────────────────────────────
         # 저장된 쿠키 파일이 있으면 그것을 사용, 없으면 현재 브라우저 쿠키를 사용
-        self.session = self.check_session_cookies()
-        if self.session is None:
+        session = self.check_session_cookies()
+        if session is None:
             # pkl 쿠키 파일이 없는 경우 — 현재 브라우저에서 쿠키를 직접 가져옴
             self.auction_operation_signal.emit("쿠키 파일 없음 → 현재 브라우저 세션으로 진행합니다.")
-            self.session = rq.Session()
+            session = rq.Session()
             for cookie in browser.get_cookies():
-                self.session.cookies.set(
+                session.cookies.set(
                     name=cookie['name'],
                     value=cookie['value'],
                     domain=cookie.get('domain', '.auction.co.kr')
                 )
+        if task_data is not None:
+            task_data["session"] = session
 
         # ── HTTP 요청으로 상품 페이지 HTML 가져오기 ──────────────────────────
         # 브라우저가 아닌 requests 라이브러리로 직접 요청 (빠르고 파싱하기 쉬움)
         try:
-            res = self.session.get(self.url)   # 상품 페이지 HTML 요청
+            res = session.get(self.url, timeout=(5, 15))
         except Exception as e:
             self.auction_operation_signal.emit(f"상품 정보 요청 실패: {e}")
             self.cleanup_resources(browser, finished)
@@ -1383,7 +1346,7 @@ class Auction(QObject):
 
         if self.fixedplug:
             # 고정가 모드: 미리 설정한 가격 목록에서 첫 번째 값 꺼내기
-            bidprice = self.fixedPricelst.pop(0)   # pop(0) = 맨 앞 값 꺼내고 목록에서 제거
+            bidprice = task_data["bidprice"] if task_data else self.fixedPricelst[0]
             self.auction_operation_signal.emit(f"고정 입찰 가격 : {bidprice}")
         else:
             # 일반 모드: 현재가 + 추가금액 = 실제 입찰가
@@ -1394,17 +1357,11 @@ class Auction(QObject):
 
         # ── 디버그용 스크린샷 저장 ────────────────────────────────────────────
         # 문제 발생 시 어느 단계에서 오류가 났는지 확인하기 위한 캡처 이미지
-        browser.save_screenshot("debug_screenshot.png")   # 상품 페이지 상태
-
         # 마감 시각 문자열을 datetime 객체로 변환
         target_time = self.wait_for_event(self.closing_time)
 
-        browser.save_screenshot("debug_screenshot1.png")  # 입찰 창 열기 직전 상태
-
         # 입찰 창 열기 ([입찰하기] 버튼 클릭 → 팝업 창)
         handlers = self.bidWindow(browser)
-
-        browser.save_screenshot("debug_screenshot2.png")  # 입찰 창 열린 후 상태
 
         if handlers:
             # 입찰 창이 정상적으로 열렸으면 별도 스레드에서 타이밍 대기 시작
@@ -1417,7 +1374,9 @@ class Auction(QObject):
             thread.join()     # 입찰이 완전히 끝날 때까지 여기서 기다림
 
         # 모든 작업 완료 후 정리
-        self.cleanup_resources(browser, finished)
+        if task_data is None:
+            self.session = session
+            self.cleanup_resources(browser, finished)
 
 
     # ============================================================
@@ -1436,14 +1395,20 @@ class Auction(QObject):
         비유: 경매가 끝난 후 짐을 챙기고 경매장을 나가는 것
         """
         # 입찰 성공/실패에 따라 다른 메시지 출력
-        if self.successCheck:
+        task_data = None
+        if hasattr(self.local_data, "thread_data"):
+            task_data = self.local_data.thread_data.get(threading.get_ident())
+        success = task_data.get("success", False) if task_data else getattr(self, "successCheck", False)
+        if success:
             self.auction_operation_signal.emit(f"정상 종료 되었습니다..")
         else:
             self.auction_operation_signal.emit(f"입찰이 실패했거나 취소되었습니다. 다시 시작해주세요.")
 
         try:
             browser.quit()       # 크롬 브라우저 완전 종료 (창 닫기 + 프로세스 종료)
-            self.session.close() # 인터넷 연결 세션 종료
+            session = task_data.get("session") if task_data else getattr(self, "session", None)
+            if session:
+                session.close()
         except Exception as e:
             self.auction_operation_signal.emit(f"종료에러 : {e}")
             # 브라우저가 이미 닫혀있는 경우 등 예외 발생 시 오류 메시지만 출력

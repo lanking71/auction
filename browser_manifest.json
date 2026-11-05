@@ -1,0 +1,9 @@
+{
+  "version": "157.0.8103.38",
+  "chrome": "browser/chrome-win64/chrome.exe",
+  "driver": "browser/chromedriver-win64/chromedriver.exe",
+  "chrome_sha256": null,
+  "driver_sha256": null,
+  "verified": false,
+  "note": "Release builds must include the matching official Chrome for Testing binaries and fill SHA-256 values."
+}

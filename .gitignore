@@ -230,6 +230,20 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Aucton local secrets and diagnostics
+account_data.json
+input_data.json
+auction_cookies.pkl
+cookies.dpapi
+config.json
+latency_history.json
+bid_runs.jsonl
+debug_bid_response.html
+debug_screenshot*.png
+
+# Supplied by the release pipeline; never downloaded at application runtime.
+browser/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/

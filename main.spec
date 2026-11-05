@@ -11,6 +11,9 @@ a = Analysis(
         ('au2.png', '.'),
         ('au3.png', '.'),
         ('au4.png', '.'),
+        ('browser_manifest.json', '.'),
+        ('browser/chrome-win64', 'browser/chrome-win64'),
+        ('browser/chromedriver-win64', 'browser/chromedriver-win64'),
         # input_data.json, account_data.json, auction_cookies.pkl 은
         # 런타임에 생성/수정되므로 번들하지 않고 배포 시 dist/main/ 폴더에 직접 복사
     ],
@@ -33,6 +36,8 @@ a = Analysis(
         'urllib3',
         'keyboard',
         'pickle',
+        'keyring',
+        'keyring.backends.Windows',
         'PySide6.QtCore',
         'PySide6.QtWidgets',
         'PySide6.QtGui',
