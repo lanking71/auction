@@ -46,6 +46,8 @@ class AuctionController(QObject):
         self.view.start_crawling.connect(self.auctionStart)
         self.view.stop_crawling.connect(self.auctionStop)
         self.crawling.auction_operation_signal.connect(self.viewstatusList)
+        self.crawling.compensation_updated_signal.connect(self.view.updateAutomaticOffset)
+        self.crawling.schedule_updated_signal.connect(self.view.updateExecutionSchedule)
         self.crawling.auction_bid_results.connect(self.viewbid_results)
         self.crawling.auction_bid_title.connect(self.view_bidTitle)
         # self.view.stop_session_signal.connect(self.auctionStop_session)

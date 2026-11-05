@@ -63,6 +63,8 @@ class Auction(QObject):
     # 이 클래스가 화면(GUI)에 정보를 보낼 때 아래 채널들을 사용합니다.
 
     auction_operation_signal = Signal(str)
+    compensation_updated_signal = Signal(float)
+    schedule_updated_signal = Signal(str)
     # 채널 1: 동작 상태 메시지를 화면 로그창에 출력할 때 사용
     # 예) "로그인 중...", "입찰 완료!" 같은 문자열(str)을 전송
 
@@ -1137,6 +1139,10 @@ class Auction(QObject):
                 f"지연 보정: 자동 {automatic_ms:.3f}ms + 수동 {manual_ms:.3f}ms = "
                 f"{automatic_ms + manual_ms:.3f}ms, 실행 예정 {local_target}"
             )
+            self.schedule_updated_signal.emit(
+                f"정밀 모드 실행 예정: {local_target.strftime('%H:%M:%S.%f')[:-3]} "
+                f"(총 보정 {automatic_ms + manual_ms:.3f}ms)"
+            )
             if interrupted():
                 self.auction_operation_signal.emit("작업이 중단되었습니다.")
                 return
@@ -1175,6 +1181,7 @@ class Auction(QObject):
             # 마감 시각에 페이지를 새로고침해서 최신 가격을 가져온 후 입찰 제출
             # (참고: 페이지 새로고침이 포함되어 고정가 모드보다 약간 느림)
             self.auction_operation_signal.emit("일반 자동 입찰입니다...................")
+            self.schedule_updated_signal.emit("일반 입찰: 자동·수동 지연 보정 미적용")
 
             fired = _adaptive_wait(target_time)   # 마감 시각까지 정밀 대기
             if not fired:
@@ -1219,7 +1226,6 @@ class Auction(QObject):
 
         # 네트워크 지연시간 = 내 PC 클릭 시각 vs 서버 등록 시각 차이
         time_difference_result = self.time_difference_calculation(bidder_time_text, now)
-        self.latency_history.record(time_difference_result * 1000.0, success=True)
         self.auction_operation_signal.emit(f"옥션 네트워크 지연시간 : {time_difference_result}")
 
         # 내 아이디 (뒤 3자리 제거 — 서버에서 ***로 마스킹하기 때문에 맞춰서 비교)
@@ -1232,6 +1238,13 @@ class Auction(QObject):
             if hasattr(self.local_data, "thread_data"):
                 self.local_data.thread_data[threading.get_ident()]["success"] = True
             self.auction_operation_signal.emit(f"입찰에 성공하였습니다. 입찰금액 : {bidprice}")
+            latency_ms = time_difference_result * 1000.0
+            if self.latency_history.record(latency_ms, success=True):
+                updated_offset = self.latency_history.current_ms()
+                self.compensation_updated_signal.emit(updated_offset)
+                self.auction_operation_signal.emit(
+                    f"성공 기록 학습 완료: {latency_ms:.3f}ms / 새 자동 보정값: {updated_offset:.3f}ms"
+                )
             self.auction_bid_results.emit(
                 [bidprice, now, bidprice, click_time, time_difference_result, bidder_time_text]
             )
@@ -1240,6 +1253,7 @@ class Auction(QObject):
             if hasattr(self.local_data, "thread_data"):
                 self.local_data.thread_data[threading.get_ident()]["success"] = False
             self.auction_operation_signal.emit(f"입찰에 실패하였습니다. 입찰금액 : {bidprice}")
+            self.auction_operation_signal.emit("실패한 입찰의 지연시간은 자동 보정 학습에서 제외합니다.")
             self.auction_bid_results.emit(
                 [bidprice, now, bidprice, click_time, time_difference_result, bidder_time_text]
             )

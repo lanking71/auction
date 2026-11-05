@@ -68,8 +68,12 @@ class ViewController(QMainWindow,QObject):
         self.manualOffset.setRange(-500.0, 500.0)
         self.manualOffset.setDecimals(3)
         self.manualOffset.setSuffix(" ms")
-        self.resize(634, 995)
+        self.scheduleLabel = QLabel(self)
+        self.scheduleLabel.setGeometry(QRect(10, 986, 610, 22))
+        self.scheduleLabel.setText("실행 예정: 일반 입찰은 지연 보정 미적용")
+        self.resize(634, 1015)
         auto_ms = LatencyHistory().current_ms()
+        self.automaticOffsetMs = auto_ms
         self.offsetLabel.setText(f"자동 보정 {auto_ms:.3f} ms / 수동 보정")
         try:
             bundle = load_browser_bundle()
@@ -100,6 +104,7 @@ class ViewController(QMainWindow,QObject):
         self.ui.linMaxPrice.textChanged.connect(self.on_price_changed)
         self.ui.btncalcul.clicked.connect(self.calculationPrice)
         self.ui.linAdditionalPrice.textChanged.connect(self.on_Additional_changed)
+        self.manualOffset.valueChanged.connect(self.updateOffsetLabel)
         self.ui.linfixedPrice.textChanged.connect(lambda text=self.ui.linfixedPrice: self.on_fixedPrice_chaged(text,"fixedPrice1"))
         self.ui.linfixedPrice_2.textChanged.connect(lambda text=self.ui.linfixedPrice_2: self.on_fixedPrice_chaged(text,"fixedPrice2"))
         self.ui.linfixedPrice_3.textChanged.connect(lambda text=self.ui.linfixedPrice_3: self.on_fixedPrice_chaged(text,"fixedPrice3"))
@@ -398,6 +403,18 @@ class ViewController(QMainWindow,QObject):
         else:
             self.ui.btnStart.setStyleSheet("")
 
+    def updateOffsetLabel(self, _value=None):
+        self.offsetLabel.setText(
+            f"자동 보정 {self.automaticOffsetMs:.3f} ms / 수동 보정"
+        )
+
+    def updateAutomaticOffset(self, offset_ms):
+        self.automaticOffsetMs = float(offset_ms)
+        self.updateOffsetLabel()
+
+    def updateExecutionSchedule(self, message):
+        self.scheduleLabel.setText(message)
+
     def save_input_data(self):
         input_data = {
             'url': self.ui.linUrl.text(),
@@ -419,8 +436,9 @@ class ViewController(QMainWindow,QObject):
         save_config(input_data)
 
     def load_input_data(self):
+        config_path = _data_path("config.json")
         try:
-            with open(_data_path("config.json"),'r', encoding='utf-8') as file:
+            with open(config_path, 'r', encoding='utf-8') as file:
                 input_data = json.load(file)
             self.ui.linUrl.setText(input_data['url'])
             self.ui.linMaxPrice.setText(input_data['maxPrice'])
@@ -439,9 +457,14 @@ class ViewController(QMainWindow,QObject):
             self.ui.clickTime2.setText(input_data['clickTime2'])
             self.ui.clickTime3.setText(input_data['clickTime3'])
 
-        except Exception as e:
-            print(f"에러....{e}")
-            pass
+        except FileNotFoundError:
+            # First run: defaults already present in the UI. The file is
+            # created automatically when the user saves or starts bidding.
+            return
+        except json.JSONDecodeError as e:
+            self.view_message(f"설정 파일 형식이 올바르지 않습니다: {config_path}\n{e}")
+        except OSError as e:
+            self.view_message(f"설정 파일을 읽을 수 없습니다: {config_path}\n{e}")
 
     def setcloseTime(self,input_time):
         # 현재 날짜와 시간 가져오기

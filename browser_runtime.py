@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -82,7 +83,9 @@ def writable_driver_copy(bundle: BrowserBundle) -> Path:
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / "chromedriver.exe"
     if not target.exists() or _sha256(target) != _sha256(bundle.driver):
-        temp = Path(tempfile.mkstemp(prefix="chromedriver-", suffix=".tmp", dir=target_dir)[1])
+        fd, temp_name = tempfile.mkstemp(prefix="chromedriver-", suffix=".tmp", dir=target_dir)
+        os.close(fd)
+        temp = Path(temp_name)
         try:
             shutil.copy2(bundle.driver, temp)
             temp.replace(target)

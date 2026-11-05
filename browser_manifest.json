@@ -2,8 +2,8 @@
   "version": "157.0.8103.38",
   "chrome": "browser/chrome-win64/chrome.exe",
   "driver": "browser/chromedriver-win64/chromedriver.exe",
-  "chrome_sha256": null,
-  "driver_sha256": null,
-  "verified": false,
-  "note": "Release builds must include the matching official Chrome for Testing binaries and fill SHA-256 values."
+  "chrome_sha256": "B299662FF2155D34B7AA8475D287940AA9461FC538DEFECFF6FDD566054541B1",
+  "driver_sha256": "377A46AE470595D73151B71A9EAE3C2A2A5913FFD8FBFE8DAD0953D2E2C0FDCE",
+  "verified": true,
+  "note": "Official Chrome for Testing win64 157.0.8103.38 verified on 2026-11-05."
 }

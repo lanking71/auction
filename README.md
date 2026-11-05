@@ -19,7 +19,7 @@ Windows용 옥션 자동입찰 도구입니다. 정밀 모드는 가격을 미�
 
 ## 로컬 데이터와 보안
 
-설정과 로그는 `%LOCALAPPDATA%\Aucton`에 저장됩니다. 비밀번호는 Windows Credential Manager, 쿠키는 Windows DPAPI로 보관합니다. 설정에는 ID만 저장하며 로그의 ID는 마스킹합니다. 기존 평문 계정과 pickle 쿠키는 보안 저장 성공 후 제거됩니다.
+설정과 로그는 개발 실행 시 프로젝트 디렉터리, 배포 실행 시 EXE가 있는 디렉터리에 저장됩니다. 비밀번호는 Windows Credential Manager, 쿠키는 Windows DPAPI로 보관합니다. 설정에는 ID만 저장하며 로그의 ID는 마스킹합니다. 기존 평문 계정과 pickle 쿠키는 보안 저장 성공 후 제거됩니다.
 
 노출된 적이 있는 비밀번호는 릴리스 전에 반드시 변경하고 기존 옥션 세션을 모두 로그아웃하십시오.
 

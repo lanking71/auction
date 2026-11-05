@@ -243,6 +243,7 @@ debug_screenshot*.png
 
 # Supplied by the release pipeline; never downloaded at application runtime.
 browser/
+driver/
 
 # Marimo
 marimo/_static/

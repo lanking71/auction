@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
@@ -15,8 +14,9 @@ def bundle_root() -> Path:
 
 
 def data_root() -> Path:
-    base = os.environ.get("LOCALAPPDATA")
-    root = Path(base) / APP_NAME if base else Path.home() / ".aucton"
+    # Keep runtime settings beside the project during development and beside
+    # the executable in a packaged release, as requested by the application owner.
+    root = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
     root.mkdir(parents=True, exist_ok=True)
     return root
 
