@@ -1,0 +1,269 @@
+{
+  "passed": false,
+  "scope": "3 processes x 1 browser x 3 local bids; 100ms functional late limit",
+  "production_late_limit_ms": 5,
+  "programs": [
+    {
+      "program": 0,
+      "pid": 27592,
+      "attempts": [
+        {
+          "task_id": "program-0-bid-0",
+          "price": 1000,
+          "state": "expired",
+          "receipt": {
+            "armed": 1243.4000000003725,
+            "callback": 1375.6000000005588,
+            "enabled": false,
+            "error": "not_enabled_before_deadline",
+            "expired": 1377.4000000003725,
+            "id": "program-0-bid-0",
+            "late_limit": 100,
+            "page": "1794469859459.7",
+            "state": "expired",
+            "target": 1377.3357000001863
+          },
+          "enable_ack": {
+            "armed": 1243.4000000003725,
+            "callback": 1375.6000000005588,
+            "enabled": false,
+            "error": "not_enabled_before_deadline",
+            "expired": 1377.4000000003725,
+            "id": "program-0-bid-0",
+            "late_limit": 100,
+            "page": "1794469859459.7",
+            "state": "expired",
+            "target": 1377.3357000001863
+          },
+          "clock_uncertainty_ms": 11.1211
+        }
+      ],
+      "driver_copy": "C:\\Aucton\\driver\\157.0.8103.38\\session-76_yrdvb\\chromedriver.exe",
+      "standard_fallback": false,
+      "error": "RuntimeError: arm failed: expired"
+    },
+    {
+      "program": 1,
+      "pid": 25128,
+      "attempts": [
+        {
+          "task_id": "program-1-bid-0",
+          "price": 2000,
+          "state": "fired",
+          "receipt": {
+            "armed": 1119.300000000745,
+            "callback": 1290.800000000745,
+            "clicked": 1292.300000000745,
+            "enabled": true,
+            "enabled_at": 1169.5,
+            "fired": 1292.1000000005588,
+            "id": "program-1-bid-0",
+            "late_limit": 100,
+            "page": "1794469859906.1",
+            "state": "fired",
+            "target": 1292.08875
+          },
+          "enable_ack": {
+            "armed": 1119.300000000745,
+            "enabled": true,
+            "enabled_at": 1169.5,
+            "id": "program-1-bid-0",
+            "late_limit": 100,
+            "page": "1794469859906.1",
+            "state": "armed",
+            "target": 1292.08875
+          },
+          "clock_uncertainty_ms": 18.14545
+        },
+        {
+          "task_id": "program-1-bid-1",
+          "price": 2001,
+          "state": "expired",
+          "receipt": {
+            "armed": 4724,
+            "callback": 4891.100000000559,
+            "enabled": false,
+            "error": "not_enabled_before_deadline",
+            "expired": 4893,
+            "id": "program-1-bid-1",
+            "late_limit": 100,
+            "page": "1794469859906.1",
+            "state": "expired",
+            "target": 4892.920950000186
+          },
+          "enable_ack": {
+            "armed": 4724,
+            "callback": 4891.100000000559,
+            "enabled": false,
+            "error": "not_enabled_before_deadline",
+            "expired": 4893,
+            "id": "program-1-bid-1",
+            "late_limit": 100,
+            "page": "1794469859906.1",
+            "state": "expired",
+            "target": 4892.920950000186
+          },
+          "clock_uncertainty_ms": 20.78445
+        },
+        {
+          "task_id": "program-1-bid-2",
+          "price": 2002,
+          "state": "fired",
+          "receipt": {
+            "armed": 5737.100000000559,
+            "callback": 5915.5,
+            "clicked": 5916.700000000186,
+            "enabled": true,
+            "enabled_at": 5755.700000000186,
+            "fired": 5916.600000000559,
+            "id": "program-1-bid-2",
+            "late_limit": 100,
+            "page": "1794469859906.1",
+            "state": "fired",
+            "target": 5916.51865
+          },
+          "enable_ack": {
+            "armed": 5737.100000000559,
+            "enabled": true,
+            "enabled_at": 5755.700000000186,
+            "id": "program-1-bid-2",
+            "late_limit": 100,
+            "page": "1794469859906.1",
+            "state": "armed",
+            "target": 5916.51865
+          },
+          "clock_uncertainty_ms": 10.29725
+        }
+      ],
+      "driver_copy": "C:\\Aucton\\driver\\157.0.8103.38\\session-_ikiqw7v\\chromedriver.exe",
+      "standard_fallback": false
+    },
+    {
+      "program": 2,
+      "pid": 27468,
+      "attempts": [
+        {
+          "task_id": "program-2-bid-0",
+          "price": 3000,
+          "state": "expired",
+          "receipt": {
+            "armed": 1138.2000000001863,
+            "callback": 1362.7000000001863,
+            "enabled": false,
+            "error": "not_enabled_before_deadline",
+            "expired": 1362.7000000001863,
+            "id": "program-2-bid-0",
+            "late_limit": 100,
+            "page": "1794469859944.5",
+            "state": "expired",
+            "target": 1337.9689999996276
+          },
+          "enable_ack": {
+            "armed": 1138.2000000001863,
+            "callback": 1362.7000000001863,
+            "enabled": false,
+            "error": "not_enabled_before_deadline",
+            "expired": 1362.7000000001863,
+            "id": "program-2-bid-0",
+            "late_limit": 100,
+            "page": "1794469859944.5",
+            "state": "expired",
+            "target": 1337.9689999996276
+          },
+          "clock_uncertainty_ms": 18.4237
+        },
+        {
+          "task_id": "program-2-bid-1",
+          "price": 3001,
+          "state": "fired",
+          "receipt": {
+            "armed": 4558.4000000003725,
+            "callback": 4801.4000000003725,
+            "clicked": 4802.700000000186,
+            "enabled": true,
+            "enabled_at": 4599.4000000003725,
+            "fired": 4802.5999999996275,
+            "id": "program-2-bid-1",
+            "late_limit": 100,
+            "page": "1794469859944.5",
+            "state": "fired",
+            "target": 4802.5711
+          },
+          "enable_ack": {
+            "armed": 4558.4000000003725,
+            "enabled": true,
+            "enabled_at": 4599.4000000003725,
+            "id": "program-2-bid-1",
+            "late_limit": 100,
+            "page": "1794469859944.5",
+            "state": "armed",
+            "target": 4802.5711
+          },
+          "clock_uncertainty_ms": 8.1372
+        },
+        {
+          "task_id": "program-2-bid-2",
+          "price": 3002,
+          "state": "fired",
+          "receipt": {
+            "armed": 5502.799999999814,
+            "callback": 5742.0999999996275,
+            "clicked": 5744.5,
+            "enabled": true,
+            "enabled_at": 5646.799999999814,
+            "fired": 5743.9000000003725,
+            "id": "program-2-bid-2",
+            "late_limit": 100,
+            "page": "1794469859944.5",
+            "state": "fired",
+            "target": 5743.36635
+          },
+          "enable_ack": {
+            "armed": 5502.799999999814,
+            "enabled": true,
+            "enabled_at": 5646.799999999814,
+            "id": "program-2-bid-2",
+            "late_limit": 100,
+            "page": "1794469859944.5",
+            "state": "armed",
+            "target": 5743.36635
+          },
+          "clock_uncertainty_ms": 10.10835
+        }
+      ],
+      "driver_copy": "C:\\Aucton\\driver\\157.0.8103.38\\session-i9ki16m3\\chromedriver.exe",
+      "standard_fallback": false
+    }
+  ],
+  "requests": [
+    {
+      "id": "program-1-bid-0",
+      "event_ms": 1293,
+      "price": 2000,
+      "target_ms": 1292.08875,
+      "received_ns": 4707100905100
+    },
+    {
+      "id": "program-2-bid-1",
+      "event_ms": 4803.0999999996275,
+      "price": 3001,
+      "target_ms": 4802.5711,
+      "received_ns": 4710528309500
+    },
+    {
+      "id": "program-2-bid-2",
+      "event_ms": 5744.5,
+      "price": 3002,
+      "target_ms": 5743.36635,
+      "received_ns": 4711448390700
+    },
+    {
+      "id": "program-1-bid-2",
+      "event_ms": 5916.700000000186,
+      "price": 2002,
+      "target_ms": 5916.51865,
+      "received_ns": 4711575158000
+    }
+  ],
+  "bundle_driver_unchanged": true
+}

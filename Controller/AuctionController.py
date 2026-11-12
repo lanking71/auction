@@ -27,6 +27,9 @@ class Worker(QRunnable):
         except Exception as e:
             print(f"Error in worker thread: {e}")
             traceback.print_exc()
+        finally:
+            self.is_running = False
+            self.signal.finished_signal.emit(False)
 
     def check_interrupted(self):
         return self.is_interrupted
@@ -72,19 +75,25 @@ class AuctionController(QObject):
     def auctionStop(self,stop):
         if stop and hasattr(self,'worker'):
             self.worker.stop()
+            self.crawling.cancel_all()
             self.crawling.auction_operation_signal.emit("취소 요청을 전달했습니다. 작업별 자원을 정리하는 중입니다.")
 
 
     def auctionStart(self,startData,secondsWindow):
         thread_pool = QThreadPool.globalInstance()
-        self.worker = Worker(self.crawling.auctionStart,startData,secondsWindow)
+        # Worker owns the single completion signal, including start-up failures.
+        self.worker = Worker(self._run_auction,startData,secondsWindow)
         self.isWorkRunning_signal.emit(True)
         self.worker.signal.finished_signal.connect(self.view_isWorkRun)
         thread_pool.start(self.worker)
         # self.crawling.auctionStart(startData,secondsWindow)
 
+    def _run_auction(self, data, times, interrupted, finished):
+        self.crawling.auctionStart(data, times, interrupted, finished=None)
+
     def auctionStop_session(self,stop):
-        self.crawling.auctionStop_session(stop)
+        if stop:
+            self.auctionStop(True)
 
     def viewstatusList(self,meassgeStr):
         self.view.viewstatusList(meassgeStr)

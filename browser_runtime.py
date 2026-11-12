@@ -7,8 +7,11 @@ import re
 import shutil
 import subprocess
 import tempfile
+import ctypes
+from ctypes import wintypes
 from dataclasses import dataclass
 from pathlib import Path
+from threading import Lock
 
 from app_paths import bundle_root, data_root
 
@@ -37,13 +40,64 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+class _VS_FIXEDFILEINFO(ctypes.Structure):
+    _fields_ = [
+        ("dwSignature", wintypes.DWORD),
+        ("dwStrucVersion", wintypes.DWORD),
+        ("dwFileVersionMS", wintypes.DWORD),
+        ("dwFileVersionLS", wintypes.DWORD),
+        ("dwProductVersionMS", wintypes.DWORD),
+        ("dwProductVersionLS", wintypes.DWORD),
+        ("dwFileFlagsMask", wintypes.DWORD),
+        ("dwFileFlags", wintypes.DWORD),
+        ("dwFileOS", wintypes.DWORD),
+        ("dwFileType", wintypes.DWORD),
+        ("dwFileSubtype", wintypes.DWORD),
+        ("dwFileDateMS", wintypes.DWORD),
+        ("dwFileDateLS", wintypes.DWORD),
+    ]
+
+
+def _windows_file_version(path: Path) -> str | None:
+    """Read the PE version resource without launching the executable."""
+    if os.name != "nt":
+        return None
+    version_dll = ctypes.windll.version
+    handle = wintypes.DWORD(0)
+    size = version_dll.GetFileVersionInfoSizeW(str(path), ctypes.byref(handle))
+    if not size:
+        return None
+    buffer = ctypes.create_string_buffer(size)
+    if not version_dll.GetFileVersionInfoW(str(path), 0, size, buffer):
+        return None
+    value = ctypes.c_void_p()
+    value_size = wintypes.UINT(0)
+    if not version_dll.VerQueryValueW(buffer, "\\", ctypes.byref(value), ctypes.byref(value_size)):
+        return None
+    if value_size.value < ctypes.sizeof(_VS_FIXEDFILEINFO):
+        return None
+    info = ctypes.cast(value, ctypes.POINTER(_VS_FIXEDFILEINFO)).contents
+    if info.dwSignature != 0xFEEF04BD:
+        return None
+    return ".".join(str(part) for part in (
+        info.dwFileVersionMS >> 16,
+        info.dwFileVersionMS & 0xFFFF,
+        info.dwFileVersionLS >> 16,
+        info.dwFileVersionLS & 0xFFFF,
+    ))
+
+
 def _binary_version(path: Path) -> str:
+    file_version = _windows_file_version(path)
+    if file_version:
+        return file_version
     try:
         result = subprocess.run([str(path), "--version"], capture_output=True, text=True,
                                 timeout=10, check=True)
     except (OSError, subprocess.SubprocessError) as exc:
         raise BrowserBundleError(f"버전 확인 실패: {path.name}: {exc}") from exc
-    match = re.search(r"(\d+\.\d+\.\d+\.\d+)", result.stdout + result.stderr)
+    output = (result.stdout or "") + (result.stderr or "")
+    match = re.search(r"(\d+\.\d+\.\d+\.\d+)", output)
     if not match:
         raise BrowserBundleError(f"버전 문자열을 읽을 수 없습니다: {path.name}")
     return match.group(1)
@@ -79,22 +133,57 @@ def load_browser_bundle(manifest_path: Path | None = None, *, verify_binaries: b
 
 
 def writable_driver_copy(bundle: BrowserBundle) -> Path:
-    target_dir = data_root() / "driver" / bundle.version
-    target_dir.mkdir(parents=True, exist_ok=True)
+    base = data_root() / "driver" / bundle.version
+    base.mkdir(parents=True, exist_ok=True)
+    # UC modifies the executable. Never replace a file another browser/process
+    # may already be using, even when all programs share the same install folder.
+    target_dir = Path(tempfile.mkdtemp(prefix="session-", dir=base))
     target = target_dir / "chromedriver.exe"
-    if not target.exists() or _sha256(target) != _sha256(bundle.driver):
-        fd, temp_name = tempfile.mkstemp(prefix="chromedriver-", suffix=".tmp", dir=target_dir)
-        os.close(fd)
-        temp = Path(temp_name)
-        try:
-            shutil.copy2(bundle.driver, temp)
-            temp.replace(target)
-        finally:
-            temp.unlink(missing_ok=True)
+    try:
+        shutil.copy2(bundle.driver, target)
+    except Exception:
+        _remove_driver_copy(target)
+        raise
     return target
 
 
-def create_browser(status_callback=None):
+def _remove_driver_copy(path: Path) -> None:
+    # Only our exact file and then its empty directory. No recursive deletion,
+    # process killing, or cleanup of another session's resources.
+    try:
+        path.unlink(missing_ok=True)
+        path.parent.rmdir()
+    except OSError:
+        pass  # Windows can retain an executable handle briefly after quit.
+
+
+class _OwnedBrowser:
+    def __init__(self, browser, driver_copy: Path):
+        self._browser = browser
+        self._driver_copy = driver_copy
+        self._quit = browser.quit
+        self._quit_lock = Lock()
+        self._closed = False
+        # UC.__del__ calls self.quit() again. Guard that path as well as the
+        # application's close, rather than running shutdown twice on Windows.
+        browser.quit = self.quit
+
+    def __getattr__(self, name):
+        return getattr(self._browser, name)
+
+    def quit(self):
+        with self._quit_lock:
+            if self._closed:
+                _remove_driver_copy(self._driver_copy)
+                return
+            self._closed = True
+        try:
+            return self._quit()
+        finally:
+            _remove_driver_copy(self._driver_copy)
+
+
+def create_browser(status_callback=None, *, headless: bool = False, diagnostic_logging: bool = False):
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options
     from selenium.webdriver.chrome.service import Service
@@ -107,21 +196,31 @@ def create_browser(status_callback=None):
         "--disable-blink-features=AutomationControlled",
         "--disable-dev-shm-usage",
     ]
+    if headless:
+        args.append("--headless=new")
     options = uc.ChromeOptions()
     options.binary_location = str(bundle.chrome)
+    if diagnostic_logging:
+        options.set_capability('goog:loggingPrefs', {'performance': 'ALL', 'browser': 'ALL'})
     for arg in args:
         options.add_argument(arg)
     try:
-        return uc.Chrome(options=options, driver_executable_path=str(driver),
-                         browser_executable_path=str(bundle.chrome), use_subprocess=True), False
+        browser = uc.Chrome(options=options, driver_executable_path=str(driver),
+                            browser_executable_path=str(bundle.chrome), use_subprocess=True,
+                            version_main=int(bundle.version.split('.')[0]))
+        return _OwnedBrowser(browser, driver), False
     except Exception as uc_error:
         if status_callback:
             status_callback("UC 시작 실패: 동일 고정 버전 표준 드라이버로 1회 재시도합니다. 탐지 회피 수준이 낮아집니다.")
         standard_options = Options()
         standard_options.binary_location = str(bundle.chrome)
+        if diagnostic_logging:
+            standard_options.set_capability('goog:loggingPrefs', {'performance': 'ALL', 'browser': 'ALL'})
         for arg in args:
             standard_options.add_argument(arg)
         try:
-            return webdriver.Chrome(service=Service(str(bundle.driver)), options=standard_options), True
+            browser = webdriver.Chrome(service=Service(str(bundle.driver)), options=standard_options)
+            return _OwnedBrowser(browser, driver), True
         except Exception as standard_error:
+            _remove_driver_copy(driver)
             raise BrowserBundleError(f"앱 전용 브라우저 시작 실패: {standard_error}") from uc_error

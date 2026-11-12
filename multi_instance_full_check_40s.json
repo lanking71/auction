@@ -1,0 +1,129 @@
+{
+  "passed": false,
+  "scope": "3 processes x 3 browsers, 9 full Auction tasks; 40s preparation lead, production 5ms late limit",
+  "production_late_limit_ms": 5,
+  "programs": [
+    {
+      "program": 0,
+      "pid": 17980,
+      "driver_copies": [
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-v0o6zsx_\\chromedriver.exe",
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-ri_23r1x\\chromedriver.exe",
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-c8qro7uc\\chromedriver.exe"
+      ],
+      "standard_fallbacks": [
+        false,
+        false,
+        false
+      ],
+      "attempts": [
+        {
+          "task_id": "344cf79a2f0e4470b18064cccea9a24c",
+          "price": 1000,
+          "state": "expired",
+          "result_status": "expired",
+          "receipt": null,
+          "error": null
+        },
+        {
+          "task_id": "24b253ad43e34e1d92bbfad7c600f403",
+          "price": 1001,
+          "state": "expired",
+          "result_status": "expired",
+          "receipt": null,
+          "error": null
+        },
+        {
+          "task_id": "c9897835da3e41f09d37807d919eda7c",
+          "price": 1002,
+          "state": "expired",
+          "result_status": "expired",
+          "receipt": null,
+          "error": null
+        }
+      ]
+    },
+    {
+      "program": 1,
+      "pid": 8100,
+      "driver_copies": [
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-p9p869pb\\chromedriver.exe",
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-7qk8evj8\\chromedriver.exe",
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-bkljhket\\chromedriver.exe"
+      ],
+      "standard_fallbacks": [
+        false,
+        false,
+        false
+      ],
+      "attempts": [
+        {
+          "task_id": "cd16400dfcee4b2aab1e9f0da63ae306",
+          "price": 2000,
+          "state": "expired",
+          "result_status": "expired",
+          "receipt": null,
+          "error": null
+        },
+        {
+          "task_id": "e16657b014f2418b93364526a0f055da",
+          "price": 2001,
+          "state": "expired",
+          "result_status": "expired",
+          "receipt": null,
+          "error": null
+        },
+        {
+          "task_id": "d42f997e6a034bb9a10f2bd329c13754",
+          "price": 2002,
+          "state": "expired",
+          "result_status": "expired",
+          "receipt": null,
+          "error": null
+        }
+      ]
+    },
+    {
+      "program": 2,
+      "pid": 14064,
+      "driver_copies": [
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-6mhr_f2h\\chromedriver.exe",
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-ovp5mp8i\\chromedriver.exe",
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-0xc6hk27\\chromedriver.exe"
+      ],
+      "standard_fallbacks": [
+        false,
+        false,
+        false
+      ],
+      "attempts": [
+        {
+          "task_id": "fc026e7caf7b42fe8721ffba32c40f72",
+          "price": 3000,
+          "state": "expired",
+          "result_status": "expired",
+          "receipt": null,
+          "error": null
+        },
+        {
+          "task_id": "2539d7d455d24d3b8e35e0254be3e172",
+          "price": 3001,
+          "state": "expired",
+          "result_status": "expired",
+          "receipt": null,
+          "error": null
+        },
+        {
+          "task_id": "68f45dfa17054000b6206e7a26974757",
+          "price": 3002,
+          "state": "expired",
+          "result_status": "expired",
+          "receipt": null,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "requests": [],
+  "bundle_driver_unchanged": true
+}

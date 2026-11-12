@@ -4,6 +4,8 @@ import ctypes
 import json
 import os
 import pickle
+import tempfile
+import time
 from ctypes import wintypes
 from pathlib import Path
 from typing import Any
@@ -82,9 +84,25 @@ def load_cookies(path: Path | None = None) -> list[dict[str, Any]]:
 def save_config(config: dict[str, Any]) -> None:
     safe = {k: v for k, v in config.items() if k.lower() not in {"password", "pw", "cookies", "cookie"}}
     target = data_path("config.json")
-    temp = target.with_suffix(".tmp")
-    temp.write_text(json.dumps(safe, ensure_ascii=False, indent=2), encoding="utf-8")
-    temp.replace(target)
+    # Concurrent application windows may save at once. A shared config.tmp
+    # lets one replace another process's file, leaving its next save failing.
+    fd, name = tempfile.mkstemp(prefix="config-", suffix=".tmp", dir=target.parent)
+    temp = Path(name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(safe, stream, ensure_ascii=False, indent=2)
+        # Windows can transiently deny a replacement while another process is
+        # replacing/reading the destination. Retry only sharing/access conflicts.
+        for attempt in range(10):
+            try:
+                temp.replace(target)
+                break
+            except PermissionError:
+                if attempt == 9:
+                    raise
+                time.sleep(0.01 * (attempt + 1))
+    finally:
+        temp.unlink(missing_ok=True)
 
 
 def migrate_legacy_files() -> list[str]:

@@ -1,0 +1,128 @@
+{
+  "passed": false,
+  "scope": "3 processes x 1 browser x 3 local bids; 100ms functional late limit",
+  "production_late_limit_ms": 5,
+  "programs": [
+    {
+      "program": 0,
+      "pid": 5280,
+      "attempts": [
+        {
+          "task_id": "program-0-bid-0",
+          "price": 1000,
+          "state": "fired"
+        },
+        {
+          "task_id": "program-0-bid-1",
+          "price": 1001,
+          "state": "fired"
+        },
+        {
+          "task_id": "program-0-bid-2",
+          "price": 1002,
+          "state": "fired"
+        }
+      ],
+      "driver_copy": "C:\\Aucton\\driver\\157.0.8103.38\\session-w4fyqx66\\chromedriver.exe",
+      "standard_fallback": false
+    },
+    {
+      "program": 1,
+      "pid": 18788,
+      "attempts": [
+        {
+          "task_id": "program-1-bid-0",
+          "price": 2000,
+          "state": "fired"
+        },
+        {
+          "task_id": "program-1-bid-1",
+          "price": 2001,
+          "state": "expired"
+        },
+        {
+          "task_id": "program-1-bid-2",
+          "price": 2002,
+          "state": "fired"
+        }
+      ],
+      "driver_copy": "C:\\Aucton\\driver\\157.0.8103.38\\session-eyuxb054\\chromedriver.exe",
+      "standard_fallback": false
+    },
+    {
+      "program": 2,
+      "pid": 6516,
+      "attempts": [
+        {
+          "task_id": "program-2-bid-0",
+          "price": 3000,
+          "state": "fired"
+        },
+        {
+          "task_id": "program-2-bid-1",
+          "price": 3001,
+          "state": "expired"
+        },
+        {
+          "task_id": "program-2-bid-2",
+          "price": 3002,
+          "state": "fired"
+        }
+      ],
+      "driver_copy": "C:\\Aucton\\driver\\157.0.8103.38\\session-wtke6ii0\\chromedriver.exe",
+      "standard_fallback": false
+    }
+  ],
+  "requests": [
+    {
+      "id": "program-0-bid-0",
+      "event_ms": 1798.5,
+      "price": 1000,
+      "target_ms": 1797.6998499998138,
+      "received_ns": 4565840363100
+    },
+    {
+      "id": "program-1-bid-0",
+      "event_ms": 1504.9000000003725,
+      "price": 2000,
+      "target_ms": 1504.3652500007452,
+      "received_ns": 4565920858800
+    },
+    {
+      "id": "program-2-bid-0",
+      "event_ms": 710.4000000003725,
+      "price": 3000,
+      "target_ms": 709.7715000000001,
+      "received_ns": 4565930961000
+    },
+    {
+      "id": "program-0-bid-1",
+      "event_ms": 2252.9000000003725,
+      "price": 1001,
+      "target_ms": 2252.6047999998136,
+      "received_ns": 4566315934000
+    },
+    {
+      "id": "program-0-bid-2",
+      "event_ms": 3289.9000000003725,
+      "price": 1002,
+      "target_ms": 3289.823850000186,
+      "received_ns": 4567338021600
+    },
+    {
+      "id": "program-1-bid-2",
+      "event_ms": 3124.300000000745,
+      "price": 2002,
+      "target_ms": 3124.1448500003726,
+      "received_ns": 4567545783500
+    },
+    {
+      "id": "program-2-bid-2",
+      "event_ms": 2533,
+      "price": 3002,
+      "target_ms": 2532.8147,
+      "received_ns": 4567751770000
+    }
+  ],
+  "bundle_driver_unchanged": true
+}

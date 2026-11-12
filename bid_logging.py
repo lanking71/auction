@@ -7,6 +7,7 @@ from dataclasses import asdict, is_dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from threading import Lock
 
 from app_paths import data_path
 
@@ -23,6 +24,7 @@ def sanitize_message(value: str) -> str:
 
 
 class JsonlBidLogger:
+    _lock = Lock()
     def __init__(self, path: Path | None = None) -> None:
         self.path = path or data_path("bid_runs.jsonl")
 
@@ -37,5 +39,6 @@ class JsonlBidLogger:
         safe = dict(event)
         if "account_id" in safe:
             safe["account_id"] = mask_account(str(safe["account_id"]))
-        with self.path.open("a", encoding="utf-8") as stream:
-            stream.write(json.dumps(safe, ensure_ascii=False, default=default) + "\n")
+        with self._lock:
+            with self.path.open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps(safe, ensure_ascii=False, default=default) + "\n")

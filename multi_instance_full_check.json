@@ -1,0 +1,571 @@
+{
+  "passed": true,
+  "scope": "3 processes x 3 browsers, 9 full Auction tasks; 80s preparation lead, production 5ms late limit",
+  "production_late_limit_ms": 5,
+  "programs": [
+    {
+      "program": 0,
+      "pid": 16860,
+      "driver_copies": [
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-tkt28930\\chromedriver.exe",
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-4aexa6w0\\chromedriver.exe",
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-vt79nwxi\\chromedriver.exe"
+      ],
+      "standard_fallbacks": [
+        false,
+        false,
+        false
+      ],
+      "attempts": [
+        {
+          "task_id": "39b274946a9f4773a72614da21553b17",
+          "price": 1000,
+          "state": "fired",
+          "result_status": "unknown",
+          "receipt": {
+            "armed": 3304.9000000003725,
+            "callback": 51729.200000000186,
+            "clicked": 51729.300000000745,
+            "enabled": true,
+            "enabled_at": 3327.7000000001863,
+            "fired": 51729.300000000745,
+            "id": "39b274946a9f4773a72614da21553b17",
+            "late_limit": 5,
+            "mockRecorded": true,
+            "page": "1794470512666.1",
+            "state": "fired",
+            "target": 51726.8712
+          },
+          "error": null,
+          "timing": {
+            "execution_target": "2026-11-12 17:02:44.387261",
+            "deadline_ns": 5410132206600,
+            "wall_anchor": "2026-11-12 17:01:25.413014",
+            "monotonic_anchor_ns": 5331157959600,
+            "server_clock_verified": false,
+            "preparation_stage": "wait_receipt",
+            "prepared_ns": 5360107212300,
+            "clock_uncertainty_ms": 7.2650999999999994,
+            "clock_page": "1794470512666.1",
+            "arm_requested_ns": 5361699814900,
+            "arm_ack_ns": 5361719133500,
+            "browser_receipt": {
+              "armed": 3304.9000000003725,
+              "callback": 51729.200000000186,
+              "clicked": 51729.300000000745,
+              "enabled": true,
+              "enabled_at": 3327.7000000001863,
+              "fired": 51729.300000000745,
+              "id": "39b274946a9f4773a72614da21553b17",
+              "late_limit": 5,
+              "mockRecorded": true,
+              "page": "1794470512666.1",
+              "state": "fired",
+              "target": 51726.8712
+            },
+            "scheduler_fired_ns": 5410134635400,
+            "browser_clicked_ns": 5410134635400
+          }
+        },
+        {
+          "task_id": "319f53924fb4483ea6c71f283223c86f",
+          "price": 1001,
+          "state": "fired",
+          "result_status": "unknown",
+          "receipt": {
+            "armed": 8440.5,
+            "callback": 57230.39999999944,
+            "clicked": 57232.39999999944,
+            "enabled": true,
+            "enabled_at": 8533.099999999627,
+            "fired": 57232.299999999814,
+            "id": "319f53924fb4483ea6c71f283223c86f",
+            "late_limit": 5,
+            "mockRecorded": true,
+            "page": "1794470507457.7",
+            "state": "fired",
+            "target": 57232.21214999944
+          },
+          "error": null,
+          "timing": {
+            "execution_target": "2026-11-12 17:02:44.687261",
+            "deadline_ns": 5410432206600,
+            "wall_anchor": "2026-11-12 17:01:25.413014",
+            "monotonic_anchor_ns": 5331157959600,
+            "server_clock_verified": false,
+            "preparation_stage": "wait_receipt",
+            "prepared_ns": 5360758035500,
+            "clock_uncertainty_ms": 4.0375499999999995,
+            "clock_page": "1794470507457.7",
+            "arm_requested_ns": 5361635195500,
+            "arm_ack_ns": 5361650165800,
+            "browser_receipt": {
+              "armed": 8440.5,
+              "callback": 57230.39999999944,
+              "clicked": 57232.39999999944,
+              "enabled": true,
+              "enabled_at": 8533.099999999627,
+              "fired": 57232.299999999814,
+              "id": "319f53924fb4483ea6c71f283223c86f",
+              "late_limit": 5,
+              "mockRecorded": true,
+              "page": "1794470507457.7",
+              "state": "fired",
+              "target": 57232.21214999944
+            },
+            "scheduler_fired_ns": 5410432294450,
+            "browser_clicked_ns": 5410432394450
+          }
+        },
+        {
+          "task_id": "56ce4ebda24a49c7801036842767845d",
+          "price": 1002,
+          "state": "fired",
+          "result_status": "unknown",
+          "receipt": {
+            "armed": 7417.399999999441,
+            "callback": 56461.799999999814,
+            "clicked": 56463.5,
+            "enabled": true,
+            "enabled_at": 7460.5999999996275,
+            "fired": 56463.299999999814,
+            "id": "56ce4ebda24a49c7801036842767845d",
+            "late_limit": 5,
+            "mockRecorded": true,
+            "page": "1794470508528.7",
+            "state": "fired",
+            "target": 56463.286099999816
+          },
+          "error": null,
+          "timing": {
+            "execution_target": "2026-11-12 17:02:44.987261",
+            "deadline_ns": 5410732206600,
+            "wall_anchor": "2026-11-12 17:01:25.413014",
+            "monotonic_anchor_ns": 5331157959600,
+            "server_clock_verified": false,
+            "preparation_stage": "wait_receipt",
+            "prepared_ns": 5361541356200,
+            "clock_uncertainty_ms": 7.2233,
+            "clock_page": "1794470508528.7",
+            "arm_requested_ns": 5361682389300,
+            "arm_ack_ns": 5361696176100,
+            "browser_receipt": {
+              "armed": 7417.399999999441,
+              "callback": 56461.799999999814,
+              "clicked": 56463.5,
+              "enabled": true,
+              "enabled_at": 7460.5999999996275,
+              "fired": 56463.299999999814,
+              "id": "56ce4ebda24a49c7801036842767845d",
+              "late_limit": 5,
+              "mockRecorded": true,
+              "page": "1794470508528.7",
+              "state": "fired",
+              "target": 56463.286099999816
+            },
+            "scheduler_fired_ns": 5410732220500,
+            "browser_clicked_ns": 5410732420500
+          }
+        }
+      ]
+    },
+    {
+      "program": 1,
+      "pid": 32744,
+      "driver_copies": [
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-9gxd_q_w\\chromedriver.exe",
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-8fx9cz5d\\chromedriver.exe",
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-gvxze8fw\\chromedriver.exe"
+      ],
+      "standard_fallbacks": [
+        false,
+        false,
+        false
+      ],
+      "attempts": [
+        {
+          "task_id": "64ba08fde1a1450280f722ad679e08db",
+          "price": 2000,
+          "state": "fired",
+          "result_status": "unknown",
+          "receipt": {
+            "armed": 1954.9000000003725,
+            "callback": 51984.799999999814,
+            "clicked": 51986.200000000186,
+            "enabled": true,
+            "enabled_at": 1972.4000000003725,
+            "fired": 51986.09999999963,
+            "id": "64ba08fde1a1450280f722ad679e08db",
+            "late_limit": 5,
+            "mockRecorded": true,
+            "page": "1794470512503.6",
+            "state": "fired",
+            "target": 51986.03785
+          },
+          "error": null,
+          "timing": {
+            "execution_target": "2026-11-12 17:02:44.487261",
+            "deadline_ns": 5410232143300,
+            "wall_anchor": "2026-11-12 17:01:25.413014",
+            "monotonic_anchor_ns": 5331157896300,
+            "server_clock_verified": false,
+            "preparation_stage": "wait_receipt",
+            "prepared_ns": 5360084245300,
+            "clock_uncertainty_ms": 4.227849999999999,
+            "clock_page": "1794470512503.6",
+            "arm_requested_ns": 5360189273500,
+            "arm_ack_ns": 5360208292200,
+            "browser_receipt": {
+              "armed": 1954.9000000003725,
+              "callback": 51984.799999999814,
+              "clicked": 51986.200000000186,
+              "enabled": true,
+              "enabled_at": 1972.4000000003725,
+              "fired": 51986.09999999963,
+              "id": "64ba08fde1a1450280f722ad679e08db",
+              "late_limit": 5,
+              "mockRecorded": true,
+              "page": "1794470512503.6",
+              "state": "fired",
+              "target": 51986.03785
+            },
+            "scheduler_fired_ns": 5410232205450,
+            "browser_clicked_ns": 5410232305450
+          }
+        },
+        {
+          "task_id": "860108ca5ffb4f9b8709dd86e5accdf5",
+          "price": 2001,
+          "state": "fired",
+          "result_status": "unknown",
+          "receipt": {
+            "armed": 1818.6000000005588,
+            "callback": 52158.90000000037,
+            "clicked": 52160.10000000056,
+            "enabled": true,
+            "enabled_at": 1844.1000000005588,
+            "fired": 52160,
+            "id": "860108ca5ffb4f9b8709dd86e5accdf5",
+            "late_limit": 5,
+            "mockRecorded": true,
+            "page": "1794470512630.3",
+            "state": "fired",
+            "target": 52159.80685000056
+          },
+          "error": null,
+          "timing": {
+            "execution_target": "2026-11-12 17:02:44.787261",
+            "deadline_ns": 5410532143300,
+            "wall_anchor": "2026-11-12 17:01:25.413014",
+            "monotonic_anchor_ns": 5331157896300,
+            "server_clock_verified": false,
+            "preparation_stage": "wait_receipt",
+            "prepared_ns": 5360083717700,
+            "clock_uncertainty_ms": 4.14525,
+            "clock_page": "1794470512630.3",
+            "arm_requested_ns": 5360186525300,
+            "arm_ack_ns": 5360198514100,
+            "browser_receipt": {
+              "armed": 1818.6000000005588,
+              "callback": 52158.90000000037,
+              "clicked": 52160.10000000056,
+              "enabled": true,
+              "enabled_at": 1844.1000000005588,
+              "fired": 52160,
+              "id": "860108ca5ffb4f9b8709dd86e5accdf5",
+              "late_limit": 5,
+              "mockRecorded": true,
+              "page": "1794470512630.3",
+              "state": "fired",
+              "target": 52159.80685000056
+            },
+            "scheduler_fired_ns": 5410532336450,
+            "browser_clicked_ns": 5410532436450
+          }
+        },
+        {
+          "task_id": "512ede082721469da0594d0843c88119",
+          "price": 2002,
+          "state": "fired",
+          "result_status": "unknown",
+          "receipt": {
+            "armed": 4948.799999999814,
+            "callback": 55576.5,
+            "clicked": 55578.299999999814,
+            "enabled": true,
+            "enabled_at": 4965.199999999255,
+            "fired": 55578.199999999255,
+            "id": "512ede082721469da0594d0843c88119",
+            "late_limit": 5,
+            "mockRecorded": true,
+            "page": "1794470509510.4",
+            "state": "fired",
+            "target": 55578.0178
+          },
+          "error": null,
+          "timing": {
+            "execution_target": "2026-11-12 17:02:45.087261",
+            "deadline_ns": 5410832143300,
+            "wall_anchor": "2026-11-12 17:01:25.413014",
+            "monotonic_anchor_ns": 5331157896300,
+            "server_clock_verified": false,
+            "preparation_stage": "wait_receipt",
+            "prepared_ns": 5359175361700,
+            "clock_uncertainty_ms": 4.9154,
+            "clock_page": "1794470509510.4",
+            "arm_requested_ns": 5360190340600,
+            "arm_ack_ns": 5360208744500,
+            "browser_receipt": {
+              "armed": 4948.799999999814,
+              "callback": 55576.5,
+              "clicked": 55578.299999999814,
+              "enabled": true,
+              "enabled_at": 4965.199999999255,
+              "fired": 55578.199999999255,
+              "id": "512ede082721469da0594d0843c88119",
+              "late_limit": 5,
+              "mockRecorded": true,
+              "page": "1794470509510.4",
+              "state": "fired",
+              "target": 55578.0178
+            },
+            "scheduler_fired_ns": 5410832325500,
+            "browser_clicked_ns": 5410832425500
+          }
+        }
+      ]
+    },
+    {
+      "program": 2,
+      "pid": 28832,
+      "driver_copies": [
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-vtafjn0w\\chromedriver.exe",
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-qut026kn\\chromedriver.exe",
+        "C:\\Aucton\\driver\\157.0.8103.38\\session-9_wy9wso\\chromedriver.exe"
+      ],
+      "standard_fallbacks": [
+        false,
+        false,
+        false
+      ],
+      "attempts": [
+        {
+          "task_id": "cee6cd790a4345b88c4324223800e93d",
+          "price": 3000,
+          "state": "fired",
+          "result_status": "unknown",
+          "receipt": {
+            "armed": 6699.5,
+            "callback": 55796.799999999814,
+            "clicked": 55799,
+            "enabled": true,
+            "enabled_at": 6728.299999999814,
+            "fired": 55798.799999999814,
+            "id": "cee6cd790a4345b88c4324223800e93d",
+            "late_limit": 5,
+            "mockRecorded": true,
+            "page": "1794470508793.3",
+            "state": "fired",
+            "target": 55798.76825
+          },
+          "error": null,
+          "timing": {
+            "execution_target": "2026-11-12 17:02:44.587261",
+            "deadline_ns": 5410332057300,
+            "wall_anchor": "2026-11-12 17:01:25.413014",
+            "monotonic_anchor_ns": 5331157810300,
+            "server_clock_verified": false,
+            "preparation_stage": "wait_receipt",
+            "prepared_ns": 5359173072500,
+            "clock_uncertainty_ms": 8.94435,
+            "clock_page": "1794470508793.3",
+            "arm_requested_ns": 5361221023100,
+            "arm_ack_ns": 5361240463900,
+            "browser_receipt": {
+              "armed": 6699.5,
+              "callback": 55796.799999999814,
+              "clicked": 55799,
+              "enabled": true,
+              "enabled_at": 6728.299999999814,
+              "fired": 55798.799999999814,
+              "id": "cee6cd790a4345b88c4324223800e93d",
+              "late_limit": 5,
+              "mockRecorded": true,
+              "page": "1794470508793.3",
+              "state": "fired",
+              "target": 55798.76825
+            },
+            "scheduler_fired_ns": 5410332089050,
+            "browser_clicked_ns": 5410332289050
+          }
+        },
+        {
+          "task_id": "b14057390dac4c53a869964c8ab6692d",
+          "price": 3001,
+          "state": "fired",
+          "result_status": "unknown",
+          "receipt": {
+            "armed": 2227.5,
+            "callback": 51621.300000000745,
+            "clicked": 51623.10000000056,
+            "enabled": true,
+            "enabled_at": 2255.600000000559,
+            "fired": 51623,
+            "id": "b14057390dac4c53a869964c8ab6692d",
+            "late_limit": 5,
+            "mockRecorded": true,
+            "page": "1794470513269.5",
+            "state": "fired",
+            "target": 51622.74205000037
+          },
+          "error": null,
+          "timing": {
+            "execution_target": "2026-11-12 17:02:44.887261",
+            "deadline_ns": 5410632057300,
+            "wall_anchor": "2026-11-12 17:01:25.413014",
+            "monotonic_anchor_ns": 5331157810300,
+            "server_clock_verified": false,
+            "preparation_stage": "wait_receipt",
+            "prepared_ns": 5360325244000,
+            "clock_uncertainty_ms": 11.23695,
+            "clock_page": "1794470513269.5",
+            "arm_requested_ns": 5361219842600,
+            "arm_ack_ns": 5361250141100,
+            "browser_receipt": {
+              "armed": 2227.5,
+              "callback": 51621.300000000745,
+              "clicked": 51623.10000000056,
+              "enabled": true,
+              "enabled_at": 2255.600000000559,
+              "fired": 51623,
+              "id": "b14057390dac4c53a869964c8ab6692d",
+              "late_limit": 5,
+              "mockRecorded": true,
+              "page": "1794470513269.5",
+              "state": "fired",
+              "target": 51622.74205000037
+            },
+            "scheduler_fired_ns": 5410632315250,
+            "browser_clicked_ns": 5410632415250
+          }
+        },
+        {
+          "task_id": "1b4b7826a43d46bba96e9a6d6074ff9e",
+          "price": 3002,
+          "state": "fired",
+          "result_status": "unknown",
+          "receipt": {
+            "armed": 2781.7000000001863,
+            "callback": 52469,
+            "clicked": 52470.799999999814,
+            "enabled": true,
+            "enabled_at": 2805.2999999998137,
+            "fired": 52470.59999999963,
+            "id": "1b4b7826a43d46bba96e9a6d6074ff9e",
+            "late_limit": 5,
+            "mockRecorded": true,
+            "page": "1794470512722.1",
+            "state": "fired",
+            "target": 52470.56109999982
+          },
+          "error": null,
+          "timing": {
+            "execution_target": "2026-11-12 17:02:45.187261",
+            "deadline_ns": 5410932057300,
+            "wall_anchor": "2026-11-12 17:01:25.413014",
+            "monotonic_anchor_ns": 5331157810300,
+            "server_clock_verified": false,
+            "preparation_stage": "wait_receipt",
+            "prepared_ns": 5361013713600,
+            "clock_uncertainty_ms": 10.187999999999999,
+            "clock_page": "1794470512722.1",
+            "arm_requested_ns": 5361218866200,
+            "arm_ack_ns": 5361250832800,
+            "browser_receipt": {
+              "armed": 2781.7000000001863,
+              "callback": 52469,
+              "clicked": 52470.799999999814,
+              "enabled": true,
+              "enabled_at": 2805.2999999998137,
+              "fired": 52470.59999999963,
+              "id": "1b4b7826a43d46bba96e9a6d6074ff9e",
+              "late_limit": 5,
+              "mockRecorded": true,
+              "page": "1794470512722.1",
+              "state": "fired",
+              "target": 52470.56109999982
+            },
+            "scheduler_fired_ns": 5410932096200,
+            "browser_clicked_ns": 5410932296200
+          }
+        }
+      ]
+    }
+  ],
+  "requests": [
+    {
+      "id": "39b274946a9f4773a72614da21553b17",
+      "event_ms": 51729.700000000186,
+      "price": 1000,
+      "target_ms": 51726.8712,
+      "received_ns": 5410155279000
+    },
+    {
+      "id": "64ba08fde1a1450280f722ad679e08db",
+      "event_ms": 51986.5,
+      "price": 2000,
+      "target_ms": 51986.03785,
+      "received_ns": 5410247215300
+    },
+    {
+      "id": "cee6cd790a4345b88c4324223800e93d",
+      "event_ms": 55799.40000000037,
+      "price": 3000,
+      "target_ms": 55798.76825,
+      "received_ns": 5410360435600
+    },
+    {
+      "id": "319f53924fb4483ea6c71f283223c86f",
+      "event_ms": 57232.700000000186,
+      "price": 1001,
+      "target_ms": 57232.21214999944,
+      "received_ns": 5410453128100
+    },
+    {
+      "id": "860108ca5ffb4f9b8709dd86e5accdf5",
+      "event_ms": 52161.10000000056,
+      "price": 2001,
+      "target_ms": 52159.80685000056,
+      "received_ns": 5410557532500
+    },
+    {
+      "id": "b14057390dac4c53a869964c8ab6692d",
+      "event_ms": 51623.60000000056,
+      "price": 3001,
+      "target_ms": 51622.74205000037,
+      "received_ns": 5410646544300
+    },
+    {
+      "id": "56ce4ebda24a49c7801036842767845d",
+      "event_ms": 56463.799999999814,
+      "price": 1002,
+      "target_ms": 56463.286099999816,
+      "received_ns": 5410787144600
+    },
+    {
+      "id": "512ede082721469da0594d0843c88119",
+      "event_ms": 55578.5,
+      "price": 2002,
+      "target_ms": 55578.0178,
+      "received_ns": 5410849184000
+    },
+    {
+      "id": "1b4b7826a43d46bba96e9a6d6074ff9e",
+      "event_ms": 52471,
+      "price": 3002,
+      "target_ms": 52470.56109999982,
+      "received_ns": 5410951808000
+    }
+  ],
+  "bundle_driver_unchanged": true
+}

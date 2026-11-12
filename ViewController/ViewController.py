@@ -1,5 +1,5 @@
 from PySide6 import QtCore
-from PySide6.QtWidgets import QMainWindow, QMessageBox, QLineEdit, QPushButton, QLabel, QDoubleSpinBox
+from PySide6.QtWidgets import QMainWindow, QMessageBox, QLineEdit, QPushButton, QLabel, QDoubleSpinBox, QRadioButton, QButtonGroup, QAbstractItemView
 from PySide6.QtCore import Qt, Signal, QObject, Slot, QRect
 from PySide6.QtGui import QFont
 from ViewController.auctionUi import Ui_MainWindow
@@ -59,6 +59,25 @@ class ViewController(QMainWindow,QObject):
             "}"
         )
         self.ui.btnLoginDone.clicked.connect(self.onLoginDone)
+        self.ui.groupBox_5.resize(351, 115)
+        self.ui.groupBox_7.setGeometry(QRect(270, 234, 351, 81))
+        self.ui.listAccount.setGeometry(QRect(10, 20, 331, 53))
+        self.ui.listAccount.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.ui.listProgress.setWordWrap(True)
+        self.ui.listProgress.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.autoLogin = QRadioButton("자동 로그인 (창 표시)", self.ui.groupBox_5)
+        self.manualLogin = QRadioButton("수동 로그인 (창 표시)", self.ui.groupBox_5)
+        self.autoLogin.setFont(QFont("Malgun Gothic", 9))
+        self.manualLogin.setFont(QFont("Malgun Gothic", 9))
+        self.autoLogin.setGeometry(QRect(10, 84, 165, 24))
+        self.manualLogin.setGeometry(QRect(179, 84, 165, 24))
+        self.loginModeGroup = QButtonGroup(self)
+        self.loginModeGroup.addButton(self.autoLogin)
+        self.loginModeGroup.addButton(self.manualLogin)
+        self.manualLogin.setChecked(True)
+        self.autoLogin.setToolTip("계정 목록에서 선택한 계정의 저장 비밀번호로 로그인합니다. 브라우저 창을 표시합니다.")
+        self.manualLogin.setToolTip("표시된 브라우저에서 직접 로그인합니다.")
+        self.autoLogin.toggled.connect(self.updateLoginMode)
         self.browserStatus = QLabel(self)
         self.browserStatus.setGeometry(QRect(10, 940, 610, 20))
         self.offsetLabel = QLabel(self)
@@ -115,6 +134,7 @@ class ViewController(QMainWindow,QObject):
         self.ui.btnreset.clicked.connect(self.resetBidding)
         self.ui.btnaccountReg.clicked.connect(self.accountRegStart)
         self.ui.listAccount.itemClicked.connect(self.load_id_list)
+        self.updateLoginMode()
 
 
     def keyPressEvent(self, event):
@@ -145,7 +165,15 @@ class ViewController(QMainWindow,QObject):
         self.ui.linID.setText(data['id'])
         self.ui.linPW.setText(get_password(data['id']) or "")
         self.save_input_data()
-        save_password(self.ui.linID.text().strip(), self.ui.linPW.text().strip())
+
+    def updateLoginMode(self, _checked=False):
+        automatic = self.autoLogin.isChecked()
+        editing_account = self.ui.checRegMode.isChecked()
+        self.ui.linID.setReadOnly(automatic and not editing_account)
+        self.ui.linPW.setReadOnly(automatic and not editing_account)
+        self.ui.btnLoginDone.setVisible(not automatic)
+        if automatic:
+            self.ui.btnLoginDone.setEnabled(False)
 
     def loadAccountsToList(self):
         try:
@@ -167,6 +195,11 @@ class ViewController(QMainWindow,QObject):
             with open(temp, 'w', encoding='utf-8') as stream:
                 json.dump(migrated, stream, ensure_ascii=False)
             os.replace(temp, _data_path('account_data.json'))
+        for index in range(self.ui.listAccount.count()):
+            item = self.ui.listAccount.item(index)
+            if json.loads(item.text()).get('id') == self.ui.linID.text().strip():
+                self.ui.listAccount.setCurrentItem(item)
+                break
 
     def accountRegStart(self):
         input_field = {
@@ -175,7 +208,7 @@ class ViewController(QMainWindow,QObject):
         }
         account_data = {}
         for field,message in input_field.items():
-            text_value = field.text().strip()
+            text_value = field.text().strip() if field == self.ui.linID else field.text()
             if not text_value:
                 self.view_message(message)
                 return
@@ -195,7 +228,13 @@ class ViewController(QMainWindow,QObject):
         with open(_data_path('account_data.json'),'w') as f:
             json.dump(data_list,f)
 
-        self.ui.listAccount.addItem(json.dumps(account_data))
+        text = json.dumps(account_data, ensure_ascii=False)
+        matches = self.ui.listAccount.findItems(text, Qt.MatchExactly)
+        if matches:
+            self.ui.listAccount.setCurrentItem(matches[0])
+        else:
+            self.ui.listAccount.addItem(text)
+            self.ui.listAccount.setCurrentRow(self.ui.listAccount.count() - 1)
 
         # with open('accoutn_data.txt','a') as f:
         #     f.write(f"{account_data['id']} {account_data['pw']}\n")
@@ -210,6 +249,7 @@ class ViewController(QMainWindow,QObject):
         else:
             self.ui.btnaccountReg.setDisabled(True)
             self.load_input_data()
+        self.updateLoginMode()
 
     def fixedsetDisable(self,flug):
         for i in range(1, 5):
@@ -348,12 +388,17 @@ class ViewController(QMainWindow,QObject):
         self.ui.lbTitle.setText(f"입찰 제목  :   {str}")
 
     def viewbid_results(self,lst):
-        self.ui.lbResult.setText(f"결 과 : {lst[0]}")
-        self.ui.lbsuccessfulPrice.setText(f"낙찰 금액 : {str(lst[2])}")
-        self.ui.lbresultTime.setText(f"PC 입찰 클릭 시간 : {str(lst[1].strftime('%H:%M:%S.%f'))}")
-        self.ui.labclick_time.setText(f"입찰 클릭 정보통신 시간 : {str(lst[3])}")
-        self.ui.laboptimum.setText(f"네트워크 전체 지연시간 : {str(lst[4])}")
-        self.ui.lnauctionRegTime.setText(str(lst[5]))
+        labels = {"accepted": "제출 수락 확인", "unknown": "제출 결과 불명 (내역 확인 필요)",
+                  "cancelled": "취소", "expired": "준비/실행 기한 초과", "failed": "실패",
+                  "fired": "제출 호출됨 (수락 미확인)", "over_limit": "한도 초과"}
+        self.ui.lbResult.setText(f"결 과 : {labels.get(lst[0], lst[0])}")
+        self.ui.lbsuccessfulPrice.setText(f"제출 금액 : {lst[2] if lst[2] is not None else '미제출'}")
+        clicked = lst[1].strftime('%H:%M:%S.%f') if lst[1] else "확인 불가"
+        self.ui.lbresultTime.setText(f"PC 입찰 클릭 시간 : {clicked}")
+        self.ui.labclick_time.setText(f"현재 순위 : {lst[3] if lst[3] else '확인 불가'}")
+        delay = f"{lst[4]:.3f} ms" if lst[4] is not None else "미검증"
+        self.ui.laboptimum.setText(f"클릭 → 서버 등록 지연 : {delay}")
+        self.ui.lnauctionRegTime.setText(str(lst[5] or "미확인"))
         self.save_input_data()
 
     def enableLoginDoneBtn(self):
@@ -398,6 +443,11 @@ class ViewController(QMainWindow,QObject):
 
     def setThreadStatus(self,isRun):
         self.threadChk = isRun
+        self.autoLogin.setEnabled(not isRun)
+        self.manualLogin.setEnabled(not isRun)
+        self.ui.listAccount.setEnabled(not isRun)
+        self.ui.checRegMode.setEnabled(not isRun)
+        self.ui.btnaccountReg.setEnabled(not isRun and self.ui.checRegMode.isChecked())
         if self.threadChk:
             self.ui.btnStart.setStyleSheet("background-color: red;")
         else:
@@ -423,6 +473,7 @@ class ViewController(QMainWindow,QObject):
             'fixedPrice': self.ui.linfixedPrice.text(),
             'auctionID': self.ui.linID.text(),
             'manualOffsetMs': self.manualOffset.value(),
+            'loginMode': 'automatic' if self.autoLogin.isChecked() else 'manual',
             'closingTime': self.ui.oneWindow.text(),
             'auctionRegTime':self.ui.lnauctionRegTime.text(),
             'range1':self.ui.range1.text(),
@@ -447,6 +498,10 @@ class ViewController(QMainWindow,QObject):
             self.ui.linID.setText(input_data['auctionID'])
             self.ui.linPW.setText(get_password(input_data.get('auctionID', '')) or '')
             self.manualOffset.setValue(float(input_data.get('manualOffsetMs', 0.0)))
+            if input_data.get('loginMode', 'manual') == 'automatic':
+                self.autoLogin.setChecked(True)
+            else:
+                self.manualLogin.setChecked(True)
             self.ui.oneWindow.setText(input_data['closingTime'])
             self.biddingTime = input_data['closingTime'][-3:] + "000"
             self.ui.lnauctionRegTime.setText(input_data['auctionRegTime'])
@@ -480,119 +535,63 @@ class ViewController(QMainWindow,QObject):
 
     def startBidding(self):
         if self.threadChk:
-            self.view_message("입찰이 진행중입니다......")
+            self.view_message("입찰이 진행 중입니다.")
             return
-        # self.ui.btnStart.setStyleSheet("background-color: red;")
-        input_time = self.ui.oneWindow.text()
-
-
-        if self.fixedbidding:
-            fixedclosetimelst = []
-            fixedPricelst = []
-            fixedInfo = {
-                "fixedPrice":{
-                    "linfixedPrice_2":self.ui.linfixedPrice_2,
-                    "linfixedPrice_3": self.ui.linfixedPrice_3,
-                    "linfixedPrice_4":self.ui.linfixedPrice_4
-                },
-                "closeTime1":{
-                    "clickTime1":self.ui.clickTime1,
-                    "clickTime2":self.ui.clickTime2,
-                    "clickTime3":self.ui.clickTime3
-                }
-            }
-            input_fields = {
-                self.ui.linUrl: "입찰 URL 정보를 입력하세요.",
-                self.ui.linfixedPrice: "고정 입찰금액을 입력하세요.",
-                self.ui.oneWindow: "입찰 시작 초 설정을 입력해 주세요.",
-                self.ui.linID: "옥션 ID를 입력하세요.",
-                self.ui.linPW: "옥션 PW를 입력하세요."
-            }
-            linfiexPrce_fields = {
-                self.ui.linfixedPrice_2:self.ui.clickTime1,
-                self.ui.linfixedPrice_3:self.ui.clickTime2,
-                self.ui.linfixedPrice_4:self.ui.clickTime3
-            }
-
-            for field, clickTime in linfiexPrce_fields.items():
-                if field.text():
-                    if not clickTime.text():
-                        self.view_message("마감초를 설정하세요.")
-                        clickTime.setFocus()
-                        return
-            for key, value in fixedInfo.items():
-                for sub_key, widget in value.items():
-                    if key == "fixedPrice":
-                        fixedInfo[key][sub_key] = widget.text()
-                        fixedPricelst.append(widget.text().replace(',', ''))
-                    elif key == "closeTime1":
-                        if int(widget.text().split('.')[0]) > 59:
-                            self.view_message("59초 이상은 등록이 않됩니다.")
-                            return
-                        element = input_time.split(':')
-                        element[-1] = widget.text()
-                        fixedInfo[key][sub_key] = (':').join(element)
-            for key, value in fixedInfo["closeTime1"].items():
-                closing_time, closing_time_date = self.setcloseTime(str(value).strip())
-                fixedclosetimelst.append(closing_time)
-
-        else:
-            input_fields = {
-                self.ui.linUrl: "입찰 URL 정보를 입력하세요.",
-                self.ui.linMaxPrice: "입찰 한도 금액을 입력하세요.",
-                self.ui.oneWindow: "입찰 시자 초 설정을 입력해 주세요.",
-                self.ui.linID: "옥션 ID를 입력하세요.",
-                self.ui.linPW: "옥션 PW를 입력하세요."
-            }
-            if not self.ui.linAdditionalPrice:
-                self.ui.linAdditionalPrice.setText("0")
-
-        closing_time, closing_time_date = self.setcloseTime(input_time)
-        current_now = datetime.now()
-
-        # time_diff = abs((closing_time_date - current_now).total_seconds())
-        time_diff = (closing_time_date - current_now).total_seconds()
-        if time_diff < 1:
-            self.view_message("입찰 시간을 설정을 하세요.")
+        try:
+            url = self.ui.linUrl.text().strip()
+            account = self.ui.linID.text().strip()
+            automatic = self.autoLogin.isChecked() if hasattr(self, 'autoLogin') else False
+            if automatic:
+                selected = self.ui.listAccount.currentItem()
+                if selected is None or not selected.isSelected():
+                    raise ValueError("자동 로그인에 사용할 계정을 계정 목록에서 선택하세요.")
+                account = str(json.loads(selected.text()).get('id', '')).strip()
+                try:
+                    saved_password = get_password(account) if account else None
+                except Exception:
+                    raise ValueError("Windows 저장 비밀번호를 읽지 못했습니다. 계정을 다시 등록하세요.") from None
+                if not saved_password:
+                    raise ValueError("선택 계정의 저장 비밀번호가 없습니다. 계정 등록에서 비밀번호를 저장하세요.")
+                del saved_password
+                self.ui.linID.setText(account)
+            if not url or not account:
+                raise ValueError("입찰 URL과 옥션 ID를 입력하세요.")
+            _, target = self.setcloseTime(self.ui.oneWindow.text().strip())
+            specs = []
+            if self.fixedbidding:
+                fields = [self.ui.linfixedPrice] + [getattr(self.ui, f"linfixedPrice_{i}") for i in range(2, 5)]
+                for index, field in enumerate(fields):
+                    raw = field.text().replace(',', '').strip()
+                    if not raw or int(raw) == 0:
+                        continue
+                    task_target = target
+                    if index:
+                        second = getattr(self.ui, f"clickTime{index}").text().strip()
+                        if not second:
+                            raise ValueError("사용할 입찰 금액의 마감 초를 입력하세요.")
+                        prefix = self.ui.oneWindow.text().strip().rsplit(':', 1)[0]
+                        _, task_target = self.setcloseTime(prefix + ':' + second)
+                    specs.append(BidTaskSpec(url, int(raw), task_target, account,
+                                             self.manualOffset.value(), automatic_login=automatic))
+            else:
+                maximum = int(self.ui.linMaxPrice.text().replace(',', ''))
+                extra = int(self.ui.linAdditionalPrice.text().replace(',', '') or 0)
+                if maximum <= 0:
+                    raise ValueError("입찰 한도 금액은 0보다 커야 합니다.")
+                specs.append(BidTaskSpec(url, 0, target, account, fixed_price=False,
+                                         max_price=maximum, additional_amount=extra, automatic_login=automatic))
+            if not specs:
+                raise ValueError("입찰 금액을 한 개 이상 입력하세요.")
+            if any((spec.target_server_time - datetime.now()).total_seconds() < 1 for spec in specs):
+                raise ValueError("모든 입찰 시각은 현재보다 최소 1초 뒤여야 합니다. 로그인 준비시간도 확보하세요.")
+        except (ValueError, TypeError) as exc:
+            self.view_message(f"입력 확인: {exc}")
             return
-
-
-        for field, message in input_fields.items():
-            text_value = field.text().strip()
-
-            if not text_value or text_value == "0":
-                self.view_message(message)
-                return
-
         self.save_input_data()
-
-
-        if self.fixedbidding:
-            fixedclosetimelst.insert(0, closing_time)
-
-            fixedPricelst.insert(0, self.ui.linfixedPrice.text().replace(',', ''))
-            specs = [
-                BidTaskSpec(
-                    url=self.ui.linUrl.text().strip(),
-                    price=int(price),
-                    target_server_time=datetime.strptime(close_time, '%y-%m-%d %H:%M:%S.%f'),
-                    account_id=self.ui.linID.text().strip(),
-                    manual_offset_ms=self.manualOffset.value(),
-                )
-                for price, close_time in zip(fixedPricelst, fixedclosetimelst)
-                if price and price != "0"
-            ]
-            self.start_crawling.emit(specs, [])
-        else:
-            closing_timelst = [closing_time]
-            start_data = [self.ui.linUrl.text(), self.ui.linMaxPrice.text().replace(',',''),self.ui.linAdditionalPrice.text().replace(',',''),self.ui.linID.text().strip(), self.ui.linPW.text().strip()]
-            self.start_crawling.emit(start_data, closing_timelst)
-
-
-
+        self.start_crawling.emit(specs, [])
 
     def viewstatusList(self,meassgeStr):
-        if self.ui.listProgress.count() >= 30:
+        if self.ui.listProgress.count() >= 1000:
             self.ui.listProgress.takeItem(0)
-        self.ui.listProgress.addItem(meassgeStr)
+        self.ui.listProgress.addItem(f"[{datetime.now():%H:%M:%S}] {meassgeStr}")
         self.ui.listProgress.scrollToBottom()

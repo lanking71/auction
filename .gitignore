@@ -237,6 +237,7 @@ auction_cookies.pkl
 cookies.dpapi
 config.json
 latency_history.json
+latency_history_v2.json
 bid_runs.jsonl
 debug_bid_response.html
 debug_screenshot*.png

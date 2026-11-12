@@ -12,6 +12,7 @@ a = Analysis(
         ('au3.png', '.'),
         ('au4.png', '.'),
         ('browser_manifest.json', '.'),
+        ('browser_timer.js', '.'),
         ('browser/chrome-win64', 'browser/chrome-win64'),
         ('browser/chromedriver-win64', 'browser/chromedriver-win64'),
         # input_data.json, account_data.json, auction_cookies.pkl 은
